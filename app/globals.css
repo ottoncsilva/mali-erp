@@ -1,0 +1,70 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 10%;
+    --primary: 44 100% 50%; /* Mali Dourado */
+    --primary-foreground: 0 0% 10%;
+    --secondary: 210 13% 45%; /* Mali Cinza-Azul */
+    --secondary-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --muted: 0 0% 90%;
+    --muted-foreground: 0 0% 45%;
+    --accent: 44 100% 50%; /* Mali Dourado */
+    --accent-foreground: 0 0% 10%;
+    --input: 0 0% 95%;
+    --ring: 44 100% 50%;
+    --radius: 0.5rem;
+    --chart-1: 44 100% 50%;
+    --chart-2: 210 13% 45%;
+    --chart-3: 0 84% 60%;
+    --chart-4: 120 60% 50%;
+    --chart-5: 260 70% 50%;
+  }
+
+  .dark {
+    --background: 212 35% 15%; /* Dark azul */
+    --foreground: 0 0% 95%;
+    --card: 212 35% 20%;
+    --card-foreground: 0 0% 95%;
+    --popover: 212 35% 20%;
+    --popover-foreground: 0 0% 95%;
+    --primary: 44 100% 60%; /* Mali Dourado (mais claro no dark) */
+    --primary-foreground: 0 0% 10%;
+    --secondary: 210 13% 55%; /* Mali Cinza-Azul (mais claro) */
+    --secondary-foreground: 0 0% 10%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 10%;
+    --muted: 0 0% 25%;
+    --muted-foreground: 0 0% 60%;
+    --accent: 44 100% 60%;
+    --accent-foreground: 0 0% 10%;
+    --input: 212 35% 25%;
+    --ring: 44 100% 60%;
+    --chart-1: 44 100% 60%;
+    --chart-2: 210 13% 55%;
+    --chart-3: 0 84% 60%;
+    --chart-4: 120 60% 50%;
+    --chart-5: 260 70% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
