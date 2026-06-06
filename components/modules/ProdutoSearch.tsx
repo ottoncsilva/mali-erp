@@ -27,8 +27,8 @@ export function ProdutoSearch({
     const term = searchTerm.toLowerCase();
     return produtos.filter(
       (p) =>
-        p.nome.toLowerCase().includes(term) ||
-        p.sku.toLowerCase().includes(term)
+        (p.nome || '').toLowerCase().includes(term) ||
+        (p.sku || '').toLowerCase().includes(term)
     );
   }, [searchTerm, produtos]);
 
@@ -51,7 +51,7 @@ export function ProdutoSearch({
   };
 
   const acabamentosDisponiveis = selectedProduto
-    ? acabamentos.filter((a) => selectedProduto.acabamentosDisponiveis.includes(a.id))
+    ? acabamentos.filter((a) => (selectedProduto.acabamentosDisponiveis || []).includes(a.id))
     : [];
 
   return (

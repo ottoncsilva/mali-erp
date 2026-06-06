@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import { ItemCarrinho, processarSimulacaoCompleta, CondicaoPagamento, validarTrvasdaNegociacao } from '@/lib/utils/precificacao';
 import { Produto, VariavelAcabamento } from '@/types';
 import { Trash2, ChevronDown, AlertCircle } from 'lucide-react';
-import { calcularCMV, calcularPrecoTabela } from '@/lib/utils/precificacao';
+import { calcularCMV, calcularPrecoTabela, calcularPontuacaoReal } from '@/lib/utils/precificacao';
 
 interface CarrinhoSimuladorProps {
   itens: ItemCarrinho[];
@@ -87,7 +87,7 @@ export function CarrinhoSimulador({
             {itensComDesconto.map((item, idx) => {
               const cmv = calcularCMV(item.produto);
               const precoTabela = calcularPrecoTabela(item.produto, pontuacaoPadrao);
-              const pontuacao = cmv / item.precoAplicado;
+              const pontuacao = calcularPontuacaoReal(cmv, item.precoAplicado);
 
               return (
                 <div key={idx} className="p-4 space-y-3">

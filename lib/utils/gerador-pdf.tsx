@@ -251,10 +251,10 @@ export function OrcamentoPDF({
                 <Text>{item.qtd}</Text>
               </View>
               <View style={[styles.tableCell, styles.precoCol]}>
-                <Text>R$ {item.precoAplicado.toFixed(2)}</Text>
+                <Text>R$ {(item.precoAplicado ?? 0).toFixed(2)}</Text>
               </View>
               <View style={[styles.tableCell, styles.precoCol]}>
-                <Text>R$ {(item.precoAplicado * item.qtd).toFixed(2)}</Text>
+                <Text>R$ {((item.precoAplicado ?? 0) * (item.qtd ?? 0)).toFixed(2)}</Text>
               </View>
             </View>
           ))}

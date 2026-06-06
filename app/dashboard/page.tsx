@@ -52,7 +52,7 @@ export default function DashboardPage() {
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-foreground mb-2">
-          Bem-vindo, {userProfile?.nome.split(' ')[0]}! 👋
+          Bem-vindo, {userProfile?.nome?.split(' ')[0] || 'Usuário'}! 👋
         </h1>
         <p className="text-muted-foreground">
           Aqui está um resumo do desempenho da sua loja

@@ -66,7 +66,7 @@ export default function BalcaoPage() {
     if (!produto) return;
 
     const precoTabela = produto.custoProduto + produto.icms + produto.ipi + produto.frete;
-    const pontuacao = produto.tipoPontuacao === 'especial' ? produto.pontuacaoEspecial! : pontuacaoPadrao;
+    const pontuacao = produto.tipoPontuacao === 'especial' ? (produto.pontuacaoEspecial ?? pontuacaoPadrao) : pontuacaoPadrao;
     const precoAplicado = precoTabela * pontuacao;
 
     const novoItem: ItemCarrinho = {
@@ -132,7 +132,7 @@ export default function BalcaoPage() {
       let somaPontuacoes = 0;
 
       carrinho.forEach((item) => {
-        const precoTabela = item.precoAplicado / (item.produto.tipoPontuacao === 'especial' ? item.produto.pontuacaoEspecial! : pontuacaoPadrao);
+        const precoTabela = item.precoAplicado / (item.produto.tipoPontuacao === 'especial' ? (item.produto.pontuacaoEspecial ?? pontuacaoPadrao) : pontuacaoPadrao);
         const precoTotalTabela = precoTabela * item.quantidade;
         const precoTotalAplicado = item.precoAplicado * item.quantidade;
         const desconto = precoTotalTabela - precoTotalAplicado;
@@ -155,7 +155,7 @@ export default function BalcaoPage() {
           foto: item.produto.fotoPrincipal,
           qtd: item.quantidade,
           cmvUnitario: item.produto.custoProduto + item.produto.icms + item.produto.ipi + item.produto.frete,
-          precoTabela: item.precoAplicado / (item.produto.tipoPontuacao === 'especial' ? item.produto.pontuacaoEspecial! : pontuacaoPadrao),
+          precoTabela: item.precoAplicado / (item.produto.tipoPontuacao === 'especial' ? (item.produto.pontuacaoEspecial ?? pontuacaoPadrao) : pontuacaoPadrao),
           precoAplicado: item.precoAplicado,
           descontoConcedido: 0,
           pontuacaoReal: (item.produto.custoProduto + item.produto.icms + item.produto.ipi + item.produto.frete) / item.precoAplicado,

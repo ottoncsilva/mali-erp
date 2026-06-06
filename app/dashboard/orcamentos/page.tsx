@@ -60,7 +60,7 @@ export default function OrcamentosPage() {
     const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
     const link = `${baseUrl}/orcamento/${orcamento.id}`;
     const clienteNome = orcamento.cliente?.nome || 'Cliente';
-    const total = orcamento.resumoVisual?.totalFinal.toFixed(2) || '0.00';
+    const total = orcamento.resumoVisual?.totalFinal?.toFixed(2) || '0.00';
     const telefone = orcamento.cliente?.telefoneWhatsapp?.replace(/\D/g, '') || '';
 
     const mensagem = encodeURIComponent(
@@ -133,7 +133,7 @@ export default function OrcamentosPage() {
                       {orc.cliente?.nome || 'Desconhecido'}
                     </td>
                     <td className="px-6 py-4 text-foreground">
-                      R$ {orc.resumoVisual?.totalFinal.toFixed(2) || '0.00'}
+                      R$ {orc.resumoVisual?.totalFinal?.toFixed(2) || '0.00'}
                     </td>
                     <td className="px-6 py-4">
                       <span className={`text-sm font-semibold ${
@@ -141,7 +141,7 @@ export default function OrcamentosPage() {
                           ? 'text-emerald-600'
                           : 'text-orange-600'
                       }`}>
-                        {orc.resumoVisual?.pontuacaoMedia.toFixed(2) || '0.00'}
+                        {orc.resumoVisual?.pontuacaoMedia?.toFixed(2) || '0.00'}
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -244,16 +244,16 @@ export default function OrcamentosPage() {
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Subtotal:</span>
-                    <span className="font-medium">R$ {selectedOrc.resumoVisual?.subtotal.toFixed(2)}</span>
+                    <span className="font-medium">R$ {selectedOrc.resumoVisual?.subtotal?.toFixed(2) ?? '0.00'}</span>
                   </div>
                   <div className="flex justify-between text-orange-600">
                     <span>Desconto:</span>
-                    <span className="font-medium">-R$ {selectedOrc.resumoVisual?.valorDescontos.toFixed(2)}</span>
+                    <span className="font-medium">-R$ {selectedOrc.resumoVisual?.valorDescontos?.toFixed(2) ?? '0.00'}</span>
                   </div>
                   <div className="flex justify-between border-t border-border pt-1 mt-1">
                     <span className="font-semibold">Total:</span>
                     <span className="font-bold text-mali-primary text-lg">
-                      R$ {selectedOrc.resumoVisual?.totalFinal.toFixed(2)}
+                      R$ {selectedOrc.resumoVisual?.totalFinal?.toFixed(2) ?? '0.00'}
                     </span>
                   </div>
                 </div>

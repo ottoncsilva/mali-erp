@@ -110,7 +110,7 @@ export default function CarteiraPage() {
                       {orc.cliente?.nome || 'Cliente Desconhecido'}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      Total: R$ {orc.resumoVisual?.totalFinal.toFixed(2) || '0.00'}
+                      Total: R$ {orc.resumoVisual?.totalFinal?.toFixed(2) || '0.00'}
                     </p>
                   </div>
 
@@ -208,12 +208,12 @@ export default function CarteiraPage() {
               <div className="flex justify-between items-center">
                 <span className="font-semibold text-foreground">Total:</span>
                 <span className="text-2xl font-bold text-mali-primary">
-                  R$ {selectedOrcamento.resumoVisual?.totalFinal.toFixed(2) || '0.00'}
+                  R$ {selectedOrcamento.resumoVisual?.totalFinal?.toFixed(2) || '0.00'}
                 </span>
               </div>
               <div className="flex justify-between items-center mt-2 text-sm">
                 <span className="text-muted-foreground">Pontuação:</span>
-                <span className="font-medium text-foreground">{selectedOrcamento.resumoVisual?.pontuacaoMedia.toFixed(2)}</span>
+                <span className="font-medium text-foreground">{selectedOrcamento.resumoVisual?.pontuacaoMedia?.toFixed(2) ?? '0.00'}</span>
               </div>
             </div>
 
