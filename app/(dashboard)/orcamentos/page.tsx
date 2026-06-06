@@ -10,11 +10,11 @@ import { Modal } from '@/components/ui/Modal';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import { OrcamentoPDF } from '@/lib/utils/gerador-pdf';
 
-interface OrcamentoComDetalhes extends Atendimento & {
+type OrcamentoComDetalhes = Atendimento & {
   id: string;
   cliente?: Cliente & { id: string };
   vendedor?: any;
-}
+};
 
 export default function OrcamentosPage() {
   const { userProfile } = useAuth();
