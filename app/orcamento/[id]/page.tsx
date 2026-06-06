@@ -172,7 +172,7 @@ export default function OrcamentoPublicoPage({ params }: PageProps) {
               <div className="space-y-3">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Subtotal:</span>
-                  <span className="font-medium">R$ {orcamento.resumoVisual?.precoTabela.toFixed(2)}</span>
+                  <span className="font-medium">R$ {orcamento.resumoVisual?.subtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm text-orange-600">
                   <span>Desconto Oferecido:</span>

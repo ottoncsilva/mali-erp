@@ -114,7 +114,7 @@ export default function ProdutosPage() {
   };
 
   const handleEdit = (produto: Produto & { id: string }) => {
-    setFormData(produto);
+    setFormData({ ...produto, pontuacaoEspecial: produto.pontuacaoEspecial ?? 2.0 });
     setFotos(produto.fotos || []);
     setEditingId(produto.id);
     setIsModalOpen(true);
@@ -151,7 +151,7 @@ export default function ProdutosPage() {
     {
       header: 'CMV',
       accessor: 'custoProduto',
-      render: (_, row: Produto) => `R$ ${((row.custoProduto + row.icms + row.ipi + row.frete) || 0).toFixed(2)}`,
+      render: (_: string, row: Produto) => `R$ ${((row.custoProduto + row.icms + row.ipi + row.frete) || 0).toFixed(2)}`,
     },
     {
       header: 'Status',

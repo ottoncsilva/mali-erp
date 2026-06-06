@@ -244,7 +244,7 @@ export default function OrcamentosPage() {
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Subtotal:</span>
-                    <span className="font-medium">R$ {selectedOrc.resumoVisual?.precoTabela.toFixed(2)}</span>
+                    <span className="font-medium">R$ {selectedOrc.resumoVisual?.subtotal.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-orange-600">
                     <span>Desconto:</span>

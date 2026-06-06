@@ -52,7 +52,7 @@ export default function FornecedoresPage() {
   };
 
   const handleEdit = (fornecedor: Fornecedor & { id: string }) => {
-    setFormData({ ...fornecedor });
+    setFormData({ ...fornecedor, observacoes: fornecedor.observacoes || '' });
     setEditingId(fornecedor.id);
     setIsModalOpen(true);
   };
