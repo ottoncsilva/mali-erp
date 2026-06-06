@@ -3,67 +3,96 @@
 @theme inline {
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* Cores dinâmicas (mudam com dark mode) */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  /* Cores Mali Mobile (fixas) */
+  --color-mali-primary: #D4AF37;
+  --color-mali-primary-light: #E8C547;
+  --color-mali-primary-dark: #A6860F;
+  --color-mali-secondary: #5A6B7C;
+  --color-mali-secondary-light: #7A8B9C;
+  --color-mali-secondary-dark: #3A4B5C;
+
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
 }
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 10%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 10%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 10%;
-    --primary: 44 100% 50%; /* Mali Dourado */
-    --primary-foreground: 0 0% 10%;
-    --secondary: 210 13% 45%; /* Mali Cinza-Azul */
-    --secondary-foreground: 0 0% 100%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
-    --muted: 0 0% 90%;
-    --muted-foreground: 0 0% 45%;
-    --accent: 44 100% 50%; /* Mali Dourado */
-    --accent-foreground: 0 0% 10%;
-    --input: 0 0% 95%;
-    --border: 0 0% 90%;
-    --ring: 44 100% 50%;
+    --background: hsl(0 0% 100%);
+    --foreground: hsl(0 0% 10%);
+    --card: hsl(0 0% 100%);
+    --card-foreground: hsl(0 0% 10%);
+    --popover: hsl(0 0% 100%);
+    --popover-foreground: hsl(0 0% 10%);
+    --primary: hsl(44 100% 50%);
+    --primary-foreground: hsl(0 0% 10%);
+    --secondary: hsl(210 13% 45%);
+    --secondary-foreground: hsl(0 0% 100%);
+    --destructive: hsl(0 84% 60%);
+    --destructive-foreground: hsl(0 0% 100%);
+    --muted: hsl(0 0% 90%);
+    --muted-foreground: hsl(0 0% 45%);
+    --accent: hsl(44 100% 50%);
+    --accent-foreground: hsl(0 0% 10%);
+    --input: hsl(0 0% 95%);
+    --border: hsl(0 0% 90%);
+    --ring: hsl(44 100% 50%);
     --radius: 0.5rem;
-    --chart-1: 44 100% 50%;
-    --chart-2: 210 13% 45%;
-    --chart-3: 0 84% 60%;
-    --chart-4: 120 60% 50%;
-    --chart-5: 260 70% 50%;
   }
 
   .dark {
-    --background: 212 35% 15%; /* Dark azul */
-    --foreground: 0 0% 95%;
-    --card: 212 35% 20%;
-    --card-foreground: 0 0% 95%;
-    --popover: 212 35% 20%;
-    --popover-foreground: 0 0% 95%;
-    --primary: 44 100% 60%; /* Mali Dourado (mais claro no dark) */
-    --primary-foreground: 0 0% 10%;
-    --secondary: 210 13% 55%; /* Mali Cinza-Azul (mais claro) */
-    --secondary-foreground: 0 0% 10%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 10%;
-    --muted: 0 0% 25%;
-    --muted-foreground: 0 0% 60%;
-    --accent: 44 100% 60%;
-    --accent-foreground: 0 0% 10%;
-    --input: 212 35% 25%;
-    --border: 212 35% 25%;
-    --ring: 44 100% 60%;
-    --chart-1: 44 100% 60%;
-    --chart-2: 210 13% 55%;
-    --chart-3: 0 84% 60%;
-    --chart-4: 120 60% 50%;
-    --chart-5: 260 70% 50%;
+    --background: hsl(212 35% 15%);
+    --foreground: hsl(0 0% 95%);
+    --card: hsl(212 35% 20%);
+    --card-foreground: hsl(0 0% 95%);
+    --popover: hsl(212 35% 20%);
+    --popover-foreground: hsl(0 0% 95%);
+    --primary: hsl(44 100% 60%);
+    --primary-foreground: hsl(0 0% 10%);
+    --secondary: hsl(210 13% 55%);
+    --secondary-foreground: hsl(0 0% 10%);
+    --destructive: hsl(0 84% 60%);
+    --destructive-foreground: hsl(0 0% 10%);
+    --muted: hsl(0 0% 25%);
+    --muted-foreground: hsl(0 0% 60%);
+    --accent: hsl(44 100% 60%);
+    --accent-foreground: hsl(0 0% 10%);
+    --input: hsl(212 35% 25%);
+    --border: hsl(212 35% 25%);
+    --ring: hsl(44 100% 60%);
   }
-}
 
-@layer base {
   body {
-    @apply bg-background text-foreground;
+    background-color: var(--background);
+    color: var(--foreground);
   }
 }
