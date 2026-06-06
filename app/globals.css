@@ -1,70 +1,71 @@
 @import "tailwindcss";
 
-@theme inline {
+/*
+ * Mali Mobile ERP - Tema Light (claro)
+ * Tailwind v4 - configuração CSS-first via @theme.
+ * Todas as cores são registradas como tokens, gerando utilities
+ * (bg-*, text-*, border-*, from-*, to-*, ring-*).
+ */
+@theme {
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
 
-@layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 10%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 10%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 10%;
-    --primary: 44 100% 50%; /* Mali Dourado */
-    --primary-foreground: 0 0% 10%;
-    --secondary: 210 13% 45%; /* Mali Cinza-Azul */
-    --secondary-foreground: 0 0% 100%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
-    --muted: 0 0% 90%;
-    --muted-foreground: 0 0% 45%;
-    --accent: 44 100% 50%; /* Mali Dourado */
-    --accent-foreground: 0 0% 10%;
-    --input: 0 0% 95%;
-    --ring: 44 100% 50%;
-    --radius: 0.5rem;
-    --chart-1: 44 100% 50%;
-    --chart-2: 210 13% 45%;
-    --chart-3: 0 84% 60%;
-    --chart-4: 120 60% 50%;
-    --chart-5: 260 70% 50%;
-  }
+  --radius: 0.5rem;
 
-  .dark {
-    --background: 212 35% 15%; /* Dark azul */
-    --foreground: 0 0% 95%;
-    --card: 212 35% 20%;
-    --card-foreground: 0 0% 95%;
-    --popover: 212 35% 20%;
-    --popover-foreground: 0 0% 95%;
-    --primary: 44 100% 60%; /* Mali Dourado (mais claro no dark) */
-    --primary-foreground: 0 0% 10%;
-    --secondary: 210 13% 55%; /* Mali Cinza-Azul (mais claro) */
-    --secondary-foreground: 0 0% 10%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 10%;
-    --muted: 0 0% 25%;
-    --muted-foreground: 0 0% 60%;
-    --accent: 44 100% 60%;
-    --accent-foreground: 0 0% 10%;
-    --input: 212 35% 25%;
-    --ring: 44 100% 60%;
-    --chart-1: 44 100% 60%;
-    --chart-2: 210 13% 55%;
-    --chart-3: 0 84% 60%;
-    --chart-4: 120 60% 50%;
-    --chart-5: 260 70% 50%;
-  }
+  /* Base - superfícies claras */
+  --color-background: hsl(210 20% 98%);
+  --color-foreground: hsl(215 28% 17%);
+  --color-card: hsl(0 0% 100%);
+  --color-card-foreground: hsl(215 28% 17%);
+  --color-popover: hsl(0 0% 100%);
+  --color-popover-foreground: hsl(215 28% 17%);
+
+  --color-muted: hsl(210 20% 94%);
+  --color-muted-foreground: hsl(215 14% 42%);
+
+  --color-border: hsl(214 20% 88%);
+  --color-input: hsl(214 20% 92%);
+  --color-ring: hsl(44 75% 48%);
+
+  /* Semânticas */
+  --color-primary: hsl(44 75% 48%);
+  --color-primary-foreground: hsl(0 0% 100%);
+  --color-secondary: hsl(210 13% 45%);
+  --color-secondary-foreground: hsl(0 0% 100%);
+  --color-accent: hsl(210 20% 94%);
+  --color-accent-foreground: hsl(215 28% 17%);
+  --color-destructive: hsl(0 72% 51%);
+  --color-destructive-foreground: hsl(0 0% 100%);
+
+  /* Marca Mali */
+  --color-mali-primary: #d4af37;
+  --color-mali-primary-light: #e8c547;
+  --color-mali-primary-dark: #a6860f;
+  --color-mali-secondary: #5a6b7c;
+  --color-mali-secondary-light: #7a8b9c;
+  --color-mali-secondary-dark: #3a4b5c;
+  --color-mali-accent: #ffffff;
+  --color-mali-accent-gray: #f5f5f5;
+
+  /* Gráficos */
+  --color-chart-1: #d4af37;
+  --color-chart-2: #5a6b7c;
+  --color-chart-3: #e11d48;
+  --color-chart-4: #16a34a;
+  --color-chart-5: #7c3aed;
 }
 
 @layer base {
   * {
-    @apply border-border;
+    border-color: var(--color-border);
   }
+
+  html {
+    background-color: var(--color-background);
+  }
+
   body {
-    @apply bg-background text-foreground;
+    background-color: var(--color-background);
+    color: var(--color-foreground);
   }
 }
