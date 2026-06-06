@@ -109,6 +109,10 @@ export interface Atendimento {
   pipelineVendedor: 'novo' | 'negociando' | 'esfriou' | 'quente';
   status: 'pendente' | 'aprovado' | 'convertido' | 'finalizado' | 'cancelado';
   clienteId: string;
+  // Dados denormalizados do cliente (para exibição na página pública sem
+  // expor a coleção de clientes). Preenchidos na criação do atendimento.
+  clienteNome?: string;
+  clienteTelefone?: string;
   vendedorId: string;
   itens: ItemAtendimento[];
   resumoVisual: {

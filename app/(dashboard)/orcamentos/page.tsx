@@ -10,11 +10,11 @@ import { Modal } from '@/components/ui/Modal';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import { OrcamentoPDF } from '@/lib/utils/gerador-pdf';
 
-interface OrcamentoComDetalhes extends Atendimento & {
+type OrcamentoComDetalhes = Atendimento & {
   id: string;
   cliente?: Cliente & { id: string };
   vendedor?: any;
-}
+};
 
 export default function OrcamentosPage() {
   const { userProfile } = useAuth();
@@ -244,16 +244,16 @@ export default function OrcamentosPage() {
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Subtotal:</span>
-                    <span className="font-medium">R$ {selectedOrc.resumoVisual?.precoTabela.toFixed(2)}</span>
+                    <span className="font-medium">R$ {(selectedOrc.resumoVisual?.subtotal ?? 0).toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-orange-600">
                     <span>Desconto:</span>
-                    <span className="font-medium">-R$ {selectedOrc.resumoVisual?.valorDescontos.toFixed(2)}</span>
+                    <span className="font-medium">-R$ {(selectedOrc.resumoVisual?.valorDescontos ?? 0).toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between border-t border-border pt-1 mt-1">
                     <span className="font-semibold">Total:</span>
                     <span className="font-bold text-mali-primary text-lg">
-                      R$ {selectedOrc.resumoVisual?.totalFinal.toFixed(2)}
+                      R$ {(selectedOrc.resumoVisual?.totalFinal ?? 0).toFixed(2)}
                     </span>
                   </div>
                 </div>

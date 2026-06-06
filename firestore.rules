@@ -1,0 +1,73 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Função auxiliar: usuário autenticado
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    // ATENDIMENTOS (Orçamentos e Vendas)
+    // - Leitura pública APENAS de orçamentos (para o link público do cliente).
+    // - Vendas e escrita exigem autenticação.
+    match /atendimentos/{id} {
+      allow read: if isAuth() || resource.data.tipo == 'orcamento';
+      allow write: if isAuth();
+    }
+
+    // CATÁLOGO PÚBLICO
+    // Produtos e acabamentos não são sensíveis e são necessários para
+    // renderizar nomes/fotos na página pública de orçamento.
+    match /produtos/{id} {
+      allow read: if true;
+      allow write: if isAuth();
+    }
+
+    match /variaveis_acabamento/{id} {
+      allow read: if true;
+      allow write: if isAuth();
+    }
+
+    // DADOS PRIVADOS (somente autenticado)
+    // Clientes contêm dados pessoais (LGPD) — nunca expostos publicamente.
+    // A página pública usa os dados denormalizados dentro do atendimento.
+    match /clientes/{id} {
+      allow read, write: if isAuth();
+    }
+
+    // Demais coleções privadas
+    match /categorias/{id} {
+      allow read, write: if isAuth();
+    }
+
+    match /fornecedores/{id} {
+      allow read, write: if isAuth();
+    }
+
+    match /usuarios/{id} {
+      allow read, write: if isAuth();
+    }
+
+    match /empresa/{id} {
+      allow read, write: if isAuth();
+    }
+
+    match /contas_receber/{id} {
+      allow read, write: if isAuth();
+    }
+
+    match /contas_pagar/{id} {
+      allow read, write: if isAuth();
+    }
+
+    match /assistencia_tecnica/{id} {
+      allow read, write: if isAuth();
+    }
+
+    // Bloqueio padrão para qualquer outra coleção não listada
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

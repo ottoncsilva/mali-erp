@@ -264,7 +264,7 @@ export function OrcamentoPDF({
         <View style={styles.resumo}>
           <View style={styles.resumoLine}>
             <Text>Subtotal:</Text>
-            <Text>R$ {atendimento.resumoVisual?.precoTabela?.toFixed(2) || '0.00'}</Text>
+            <Text>R$ {atendimento.resumoVisual?.subtotal?.toFixed(2) || '0.00'}</Text>
           </View>
           <View style={styles.resumoLine}>
             <Text>Descontos:</Text>

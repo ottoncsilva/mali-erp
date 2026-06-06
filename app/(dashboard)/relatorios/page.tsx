@@ -131,7 +131,7 @@ export default function RelatoriosPage() {
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(val: number) => `R$ ${val.toFixed(2)}`} />
+                  <Tooltip formatter={(val) => (typeof val === 'number' ? `R$ ${val.toFixed(2)}` : val)} />
                 </PieChart>
               </ResponsiveContainer>
             </div>

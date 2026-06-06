@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { db } from '@/lib/firebase/config';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, getDocs, collection } from 'firebase/firestore';
 import { Atendimento, Cliente, Produto, VariavelAcabamento } from '@/types';
 import { Loader2, MessageCircle, Download, AlertCircle } from 'lucide-react';
 import { PDFDownloadLink } from '@react-pdf/renderer';
@@ -38,18 +38,32 @@ export default function OrcamentoPublicoPage({ params }: PageProps) {
         const orcData = { ...(orcSnap.data() as Atendimento), id: orcSnap.id };
         setOrcamento(orcData);
 
-        // Carregar cliente
+        // Carregar cliente.
+        // A página pública não tem acesso de leitura à coleção de clientes
+        // (dados pessoais protegidos por LGPD). A tentativa é envolvida em
+        // try/catch para não quebrar a página; os dados denormalizados no
+        // próprio atendimento (clienteNome/clienteTelefone) são a fonte principal.
         if (orcData.clienteId) {
-          const clienteRef = doc(db, 'clientes', orcData.clienteId);
-          const clienteSnap = await getDoc(clienteRef);
-          if (clienteSnap.exists()) {
-            setCliente({ ...(clienteSnap.data() as Cliente), id: clienteSnap.id });
+          try {
+            const clienteRef = doc(db, 'clientes', orcData.clienteId);
+            const clienteSnap = await getDoc(clienteRef);
+            if (clienteSnap.exists()) {
+              setCliente({ ...(clienteSnap.data() as Cliente), id: clienteSnap.id });
+            }
+          } catch {
+            // Sem permissão de leitura (acesso público) — usa dados denormalizados.
           }
         }
 
-        // Carregar produtos e acabamentos
-        const produtosSnap = await getDoc(doc(db, 'empresa', 'config'));
-        // Simplificado: em produção, faria queries mais eficientes
+        // Carregar produtos e acabamentos (para nomes e geração de PDF)
+        const [produtosSnap, acabamentosSnap] = await Promise.all([
+          getDocs(collection(db, 'produtos')),
+          getDocs(collection(db, 'variaveis_acabamento')),
+        ]);
+        setProdutos(produtosSnap.docs.map((d) => ({ ...(d.data() as Produto), id: d.id })));
+        setAcabamentos(
+          acabamentosSnap.docs.map((d) => ({ ...(d.data() as VariavelAcabamento), id: d.id }))
+        );
 
         setLoading(false);
       } catch (err) {
@@ -95,6 +109,14 @@ export default function OrcamentoPublicoPage({ params }: PageProps) {
     return acabamentos.find((a) => a.id === id)?.nomeDaOpcao || 'N/A';
   };
 
+  // Dados do cliente: usa o documento (se acessível) ou os campos denormalizados.
+  const clienteNome = cliente?.nome || orcamento.clienteNome || '';
+  const clienteTelefone = cliente?.telefoneWhatsapp || orcamento.clienteTelefone || '';
+
+  const subtotal = orcamento.resumoVisual?.subtotal ?? 0;
+  const valorDescontos = orcamento.resumoVisual?.valorDescontos ?? 0;
+  const totalFinal = orcamento.resumoVisual?.totalFinal ?? 0;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-mali-primary/10 to-mali-secondary/10 p-4">
       <div className="max-w-4xl mx-auto">
@@ -109,17 +131,17 @@ export default function OrcamentoPublicoPage({ params }: PageProps) {
           {/* Content */}
           <div className="p-8 space-y-8">
             {/* Cliente Info */}
-            {cliente && (
+            {(clienteNome || clienteTelefone) && (
               <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
                 <h2 className="text-lg font-semibold text-foreground mb-4">Informações do Cliente</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <p className="text-sm text-muted-foreground mb-1">Nome</p>
-                    <p className="text-lg font-medium text-foreground">{cliente.nome}</p>
+                    <p className="text-lg font-medium text-foreground">{clienteNome || '—'}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground mb-1">Telefone</p>
-                    <p className="text-lg font-medium text-foreground">{cliente.telefoneWhatsapp}</p>
+                    <p className="text-lg font-medium text-foreground">{clienteTelefone || '—'}</p>
                   </div>
                 </div>
               </div>
@@ -143,7 +165,9 @@ export default function OrcamentoPublicoPage({ params }: PageProps) {
                     )}
                     <div className="flex-1">
                       <h3 className="font-semibold text-foreground text-lg">{item.nome}</h3>
-                      <p className="text-sm text-muted-foreground mb-3">{getNomeAcabamento(item.acabamentoEscolhido)}</p>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        {getNomeAcabamento(item.acabamentoEscolhido)}
+                      </p>
                       <div className="grid grid-cols-3 gap-4 text-sm">
                         <div>
                           <span className="text-muted-foreground">Quantidade:</span>
@@ -151,12 +175,14 @@ export default function OrcamentoPublicoPage({ params }: PageProps) {
                         </div>
                         <div>
                           <span className="text-muted-foreground">Preço Unitário:</span>
-                          <p className="font-semibold text-foreground">R$ {item.precoAplicado.toFixed(2)}</p>
+                          <p className="font-semibold text-foreground">
+                            R$ {(item.precoAplicado ?? 0).toFixed(2)}
+                          </p>
                         </div>
                         <div>
                           <span className="text-muted-foreground">Subtotal:</span>
                           <p className="font-bold text-mali-primary text-lg">
-                            R$ {(item.precoAplicado * item.qtd).toFixed(2)}
+                            R$ {((item.precoAplicado ?? 0) * (item.qtd ?? 0)).toFixed(2)}
                           </p>
                         </div>
                       </div>
@@ -172,17 +198,17 @@ export default function OrcamentoPublicoPage({ params }: PageProps) {
               <div className="space-y-3">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Subtotal:</span>
-                  <span className="font-medium">R$ {orcamento.resumoVisual?.precoTabela.toFixed(2)}</span>
+                  <span className="font-medium">R$ {subtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm text-orange-600">
                   <span>Desconto Oferecido:</span>
-                  <span className="font-bold">-R$ {orcamento.resumoVisual?.valorDescontos.toFixed(2)}</span>
+                  <span className="font-bold">-R$ {valorDescontos.toFixed(2)}</span>
                 </div>
                 <div className="h-px bg-mali-primary/30"></div>
                 <div className="flex justify-between items-center">
                   <span className="text-lg font-bold text-foreground">TOTAL:</span>
                   <span className="text-3xl font-bold text-mali-primary">
-                    R$ {orcamento.resumoVisual?.totalFinal.toFixed(2)}
+                    R$ {totalFinal.toFixed(2)}
                   </span>
                 </div>
               </div>
@@ -201,7 +227,13 @@ export default function OrcamentoPublicoPage({ params }: PageProps) {
             {/* Ações */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <a
-                href={`https://wa.me/${cliente?.telefoneWhatsapp?.replace(/\D/g, '')}?text=Olá! Gostaria de confirmar o orçamento nº ${orcamento.id.substring(0, 8).toUpperCase()} no valor de R$ ${orcamento.resumoVisual?.totalFinal.toFixed(2)}. Segue o link: ${typeof window !== 'undefined' ? window.location.href : ''}`}
+                href={`https://wa.me/${clienteTelefone.replace(/\D/g, '')}?text=${encodeURIComponent(
+                  `Olá! Gostaria de confirmar o orçamento nº ${orcamento.id
+                    .substring(0, 8)
+                    .toUpperCase()} no valor de R$ ${totalFinal.toFixed(2)}. Segue o link: ${
+                    typeof window !== 'undefined' ? window.location.href : ''
+                  }`
+                )}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center justify-center gap-2 px-6 py-3 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors font-semibold"
@@ -222,13 +254,13 @@ export default function OrcamentoPublicoPage({ params }: PageProps) {
                   }
                   fileName={`orcamento-${orcamento.id.substring(0, 8)}.pdf`}
                 >
-                  {({ blob, url, loading, error }) => (
+                  {({ loading: pdfLoading }) => (
                     <button
-                      disabled={loading}
+                      disabled={pdfLoading}
                       className="flex items-center justify-center gap-2 px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors font-semibold disabled:opacity-50"
                     >
                       <Download className="w-5 h-5" />
-                      {loading ? 'Gerando...' : 'Baixar PDF'}
+                      {pdfLoading ? 'Gerando...' : 'Baixar PDF'}
                     </button>
                   )}
                 </PDFDownloadLink>

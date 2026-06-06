@@ -8,7 +8,7 @@ import { query, where, collectionGroup, getDocs } from 'firebase/firestore';
 import { ArrowRight, Loader2, Mail, Phone, TrendingUp, Eye } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 
-interface AtendimentoComCliente extends Atendimento & { id: string; cliente?: Cliente & { id: string } } {}
+type AtendimentoComCliente = Atendimento & { id: string; cliente?: Cliente & { id: string } };
 
 const statusPipeline = [
   { value: 'novo', label: 'Novo', color: 'bg-blue-500/10 border-blue-500/20 text-blue-600' },
