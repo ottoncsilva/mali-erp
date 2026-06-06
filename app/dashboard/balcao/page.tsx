@@ -17,6 +17,7 @@ export default function BalcaoPage() {
   const { data: clientes } = useCollection<Cliente>('clientes');
   const { data: acabamentos } = useCollection<VariavelAcabamento>('variaveis_acabamento');
   const { add: addAtendimento } = useAddDocument('atendimentos');
+  const { add: addCliente } = useAddDocument('clientes');
 
   const [carrinho, setCarrinho] = useState<ItemCarrinho[]>([]);
   const [clienteId, setClienteId] = useState('');
@@ -93,15 +94,15 @@ export default function BalcaoPage() {
     }
 
     try {
-      const docRef = await addAtendimento({
+      const docRef = await addCliente({
         nome: novoClienteData.nome,
         cpfCnpj: novoClienteData.cpfCnpj,
         telefoneWhatsapp: novoClienteData.telefoneWhatsapp,
         endereco: novoClienteData.endereco,
         classificacao: 'novo',
+        criadoEm: new Date(),
       });
 
-      // Note: Isso seria atendimentos, não clientes. Para simplicidade, usando atendimentos
       setClienteId(docRef);
       setNovoClienteData({ nome: '', cpfCnpj: '', telefoneWhatsapp: '', endereco: '' });
       setIsClienteModalOpen(false);

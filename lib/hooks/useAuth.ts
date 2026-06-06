@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { auth, db } from '@/lib/firebase/config';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 export interface UserProfile {
   uid: string;
@@ -38,7 +38,20 @@ export function useAuth() {
               ...userDocSnap.data(),
             } as UserProfile);
           } else {
-            setError('Perfil de usuário não encontrado');
+            // Primeiro acesso: cria perfil admin padrão automaticamente.
+            // Contas só são criadas manualmente pelo dono no Firebase Console,
+            // então o primeiro a logar é o administrador do sistema.
+            const novoPerfil = {
+              nome: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Administrador',
+              perfil: 'admin' as const,
+              ativo: true,
+            };
+            await setDoc(userDocRef, novoPerfil);
+            setUserProfile({
+              uid: firebaseUser.uid,
+              email: firebaseUser.email || '',
+              ...novoPerfil,
+            });
           }
         } else {
           setUser(null);
