@@ -24,6 +24,7 @@
     --accent: 44 100% 50%; /* Mali Dourado */
     --accent-foreground: 0 0% 10%;
     --input: 0 0% 95%;
+    --border: 0 0% 90%;
     --ring: 44 100% 50%;
     --radius: 0.5rem;
     --chart-1: 44 100% 50%;
@@ -51,6 +52,7 @@
     --accent: 44 100% 60%;
     --accent-foreground: 0 0% 10%;
     --input: 212 35% 25%;
+    --border: 212 35% 25%;
     --ring: 44 100% 60%;
     --chart-1: 44 100% 60%;
     --chart-2: 210 13% 55%;

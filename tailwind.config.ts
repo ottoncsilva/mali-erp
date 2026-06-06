@@ -52,6 +52,7 @@ const config: Config = {
           foreground: 'hsl(var(--accent-foreground))',
         },
         input: 'hsl(var(--input))',
+        border: 'hsl(var(--border))',
         ring: 'hsl(var(--ring))',
         chart: {
           '1': 'hsl(var(--chart-1))',
