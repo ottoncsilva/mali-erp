@@ -86,12 +86,6 @@ const navItems: NavItem[] = [
     requiredProfiles: ['admin', 'gerencia', 'vendedor'],
     children: [
       {
-        label: 'PDV',
-        href: '/dashboard/balcao',
-        icon: <ShoppingCart className="w-4 h-4" />,
-        requiredProfiles: ['admin', 'gerencia', 'vendedor'],
-      },
-      {
         label: 'Carteira',
         href: '/dashboard/carteira',
         icon: <Briefcase className="w-4 h-4" />,

@@ -9,9 +9,16 @@ import { CarrinhoSimulador } from '@/components/modules/CarrinhoSimulador';
 import { Modal } from '@/components/ui/Modal';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
-import { Plus, ShoppingCart, FileText, AlertCircle, Loader2 } from 'lucide-react';
+import { Plus, ShoppingCart, FileText, Loader2 } from 'lucide-react';
 
-export default function BalcaoPage() {
+interface PDVModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  /** Chamado após salvar com sucesso (orçamento ou venda). */
+  onSaved?: () => void;
+}
+
+export function PDVModal({ isOpen, onClose, onSaved }: PDVModalProps) {
   const { userProfile } = useAuth();
   const { data: produtos, loading: produtosLoading } = useCollection<Produto>('produtos');
   const { data: clientes } = useCollection<Cliente>('clientes');
@@ -33,6 +40,16 @@ export default function BalcaoPage() {
   const [limitePerfil, setLimitePerfil] = useState(1.8);
   const [processando, setProcessando] = useState(false);
 
+  // Resetar estado quando o modal abre
+  useEffect(() => {
+    if (isOpen) {
+      setCarrinho([]);
+      setClienteId('');
+      setTipoAtendimento('orcamento');
+      setProcessando(false);
+    }
+  }, [isOpen]);
+
   // Carregar configurações
   useEffect(() => {
     const loadConfig = async () => {
@@ -43,7 +60,6 @@ export default function BalcaoPage() {
           const data = docSnap.data();
           setPontuacaoPadrao(data.pontuacaoPadrao || 2.0);
 
-          // Definir limite baseado no perfil
           if (userProfile?.perfil === 'admin') {
             setLimitePerfil(1.0); // Ilimitado
           } else if (userProfile?.perfil === 'gerencia') {
@@ -57,16 +73,18 @@ export default function BalcaoPage() {
       }
     };
 
-    loadConfig();
-  }, [userProfile]);
+    if (isOpen) loadConfig();
+  }, [userProfile, isOpen]);
 
-  // Adicionar item ao carrinho
   const handleAddItem = (produtoId: string, acabamentoId: string, quantidade: number) => {
     const produto = produtos.find((p) => p.id === produtoId);
     if (!produto) return;
 
     const precoTabela = produto.custoProduto + produto.icms + produto.ipi + produto.frete;
-    const pontuacao = produto.tipoPontuacao === 'especial' ? (produto.pontuacaoEspecial ?? pontuacaoPadrao) : pontuacaoPadrao;
+    const pontuacao =
+      produto.tipoPontuacao === 'especial'
+        ? produto.pontuacaoEspecial ?? pontuacaoPadrao
+        : pontuacaoPadrao;
     const precoAplicado = precoTabela * pontuacao;
 
     const novoItem: ItemCarrinho = {
@@ -81,15 +99,13 @@ export default function BalcaoPage() {
     setCarrinho([...carrinho, novoItem]);
   };
 
-  // Remover item do carrinho
   const handleRemoveItem = (index: number) => {
     setCarrinho(carrinho.filter((_, i) => i !== index));
   };
 
-  // Criar novo cliente
   const handleCreateCliente = async () => {
     if (!novoClienteData.nome || !novoClienteData.telefoneWhatsapp) {
-      alert('Preenchha Nome e WhatsApp');
+      alert('Preencha Nome e WhatsApp');
       return;
     }
 
@@ -111,7 +127,6 @@ export default function BalcaoPage() {
     }
   };
 
-  // Finalizar atendimento (Orçamento ou Venda)
   const handleFinalizar = async () => {
     if (carrinho.length === 0) {
       alert('Carrinho vazio');
@@ -126,24 +141,28 @@ export default function BalcaoPage() {
     setProcessando(true);
 
     try {
-      // Calcular totais
       let subtotal = 0;
       let totalDescontos = 0;
       let somaPontuacoes = 0;
 
       carrinho.forEach((item) => {
-        const precoTabela = item.precoAplicado / (item.produto.tipoPontuacao === 'especial' ? (item.produto.pontuacaoEspecial ?? pontuacaoPadrao) : pontuacaoPadrao);
+        const pont =
+          item.produto.tipoPontuacao === 'especial'
+            ? item.produto.pontuacaoEspecial ?? pontuacaoPadrao
+            : pontuacaoPadrao;
+        const precoTabela = item.precoAplicado / pont;
         const precoTotalTabela = precoTabela * item.quantidade;
         const precoTotalAplicado = item.precoAplicado * item.quantidade;
         const desconto = precoTotalTabela - precoTotalAplicado;
 
         subtotal += precoTotalTabela;
         totalDescontos += desconto;
-        somaPontuacoes += (item.produto.custoProduto + item.produto.icms + item.produto.ipi + item.produto.frete) / item.precoAplicado;
+        somaPontuacoes +=
+          (item.produto.custoProduto + item.produto.icms + item.produto.ipi + item.produto.frete) /
+          item.precoAplicado;
       });
 
-      // Denormaliza dados do cliente para exibição na página pública
-      // sem expor a coleção de clientes.
+      // Denormaliza dados do cliente (página pública não lê coleção de clientes)
       const clienteSelecionado = clientes.find((c) => c.id === clienteId);
 
       const atendimento = {
@@ -154,18 +173,26 @@ export default function BalcaoPage() {
         clienteNome: clienteSelecionado?.nome || '',
         clienteTelefone: clienteSelecionado?.telefoneWhatsapp || '',
         vendedorId: userProfile?.uid,
-        itens: carrinho.map((item) => ({
-          produtoId: item.produtoId,
-          acabamentoEscolhido: item.acabamentoEscolhido,
-          nome: item.produto.nome,
-          foto: item.produto.fotoPrincipal,
-          qtd: item.quantidade,
-          cmvUnitario: item.produto.custoProduto + item.produto.icms + item.produto.ipi + item.produto.frete,
-          precoTabela: item.precoAplicado / (item.produto.tipoPontuacao === 'especial' ? (item.produto.pontuacaoEspecial ?? pontuacaoPadrao) : pontuacaoPadrao),
-          precoAplicado: item.precoAplicado,
-          descontoConcedido: 0,
-          pontuacaoReal: (item.produto.custoProduto + item.produto.icms + item.produto.ipi + item.produto.frete) / item.precoAplicado,
-        })),
+        itens: carrinho.map((item) => {
+          const pont =
+            item.produto.tipoPontuacao === 'especial'
+              ? item.produto.pontuacaoEspecial ?? pontuacaoPadrao
+              : pontuacaoPadrao;
+          const cmv =
+            item.produto.custoProduto + item.produto.icms + item.produto.ipi + item.produto.frete;
+          return {
+            produtoId: item.produtoId,
+            acabamentoEscolhido: item.acabamentoEscolhido,
+            nome: item.produto.nome,
+            foto: item.produto.fotoPrincipal,
+            qtd: item.quantidade,
+            cmvUnitario: cmv,
+            precoTabela: item.precoAplicado / pont,
+            precoAplicado: item.precoAplicado,
+            descontoConcedido: 0,
+            pontuacaoReal: cmv / item.precoAplicado,
+          };
+        }),
         resumoVisual: {
           subtotal,
           valorDescontos: totalDescontos,
@@ -180,10 +207,11 @@ export default function BalcaoPage() {
 
       await addAtendimento(atendimento);
 
-      // Limpar
       setCarrinho([]);
       setClienteId('');
       alert(`${tipoAtendimento === 'orcamento' ? 'Orçamento' : 'Venda'} criado com sucesso!`);
+      onSaved?.();
+      onClose();
     } catch (err) {
       console.error('Erro:', err);
       alert('Erro ao finalizar');
@@ -193,16 +221,14 @@ export default function BalcaoPage() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Balcão de Vendas</h1>
-        <p className="text-muted-foreground mt-2">PDV + Orçamentos - Interface Unificada</p>
-      </div>
-
-      {/* Main Grid */}
+    <Modal
+      isOpen={isOpen}
+      title={tipoAtendimento === 'orcamento' ? 'Novo Orçamento' : 'Nova Venda'}
+      onClose={onClose}
+      size="full"
+    >
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left: Busca de Produtos */}
+        {/* Esquerda: Busca de Produtos */}
         <div className="lg:col-span-1">
           <ProdutoSearch
             produtos={produtos}
@@ -212,7 +238,7 @@ export default function BalcaoPage() {
           />
         </div>
 
-        {/* Right: Carrinho + Simulador */}
+        {/* Direita: Carrinho + Simulador */}
         <div className="lg:col-span-2 space-y-6">
           {/* Cliente */}
           <div className="bg-card rounded-lg border border-border p-4">
@@ -293,7 +319,11 @@ export default function BalcaoPage() {
                   </>
                 ) : (
                   <>
-                    {tipoAtendimento === 'orcamento' ? <FileText className="w-4 h-4" /> : <ShoppingCart className="w-4 h-4" />}
+                    {tipoAtendimento === 'orcamento' ? (
+                      <FileText className="w-4 h-4" />
+                    ) : (
+                      <ShoppingCart className="w-4 h-4" />
+                    )}
                     {tipoAtendimento === 'orcamento' ? 'Gerar Orçamento' : 'Finalizar Venda'}
                   </>
                 )}
@@ -302,14 +332,14 @@ export default function BalcaoPage() {
                 onClick={() => setCarrinho([])}
                 className="px-6 py-3 bg-background border border-border text-foreground rounded-lg hover:bg-card transition-colors font-semibold"
               >
-                Cancelar
+                Limpar
               </button>
             </div>
           )}
         </div>
       </div>
 
-      {/* Modal Novo Cliente */}
+      {/* Modal aninhado: Novo Cliente */}
       <Modal
         isOpen={isClienteModalOpen}
         title="Cadastro Rápido de Cliente"
@@ -339,7 +369,9 @@ export default function BalcaoPage() {
             <input
               type="tel"
               value={novoClienteData.telefoneWhatsapp}
-              onChange={(e) => setNovoClienteData({ ...novoClienteData, telefoneWhatsapp: e.target.value })}
+              onChange={(e) =>
+                setNovoClienteData({ ...novoClienteData, telefoneWhatsapp: e.target.value })
+              }
               placeholder="11999999999"
               className="w-full px-3 py-2 bg-background border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-mali-primary"
               required
@@ -383,6 +415,6 @@ export default function BalcaoPage() {
           </div>
         </form>
       </Modal>
-    </div>
+    </Modal>
   );
 }

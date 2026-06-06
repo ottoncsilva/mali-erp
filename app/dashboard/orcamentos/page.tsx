@@ -5,8 +5,9 @@ import { Atendimento, Produto, Cliente, VariavelAcabamento } from '@/types';
 import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase/config';
 import { query, where, getDocs, collection } from 'firebase/firestore';
-import { Copy, Eye, Share2, Download, MessageCircle, Check } from 'lucide-react';
+import { Copy, Eye, Share2, Download, MessageCircle, Check, Plus } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
+import { PDVModal } from '@/components/modules/PDVModal';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import { OrcamentoPDF } from '@/lib/utils/gerador-pdf';
 
@@ -27,6 +28,7 @@ export default function OrcamentosPage() {
   const [filtro, setFiltro] = useState<'todos' | 'pendentes' | 'meus'>('pendentes');
   const [selectedOrc, setSelectedOrc] = useState<OrcamentoComDetalhes | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isPDVOpen, setIsPDVOpen] = useState(false);
   const [linkCopiado, setLinkCopiado] = useState(false);
   const [nomeEmpresa, setNomeEmpresa] = useState('Mali Mobile');
 
@@ -82,9 +84,18 @@ export default function OrcamentosPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Orçamentos</h1>
-        <p className="text-muted-foreground mt-2">Gerencie e compartilhe orçamentos com clientes</p>
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Orçamentos</h1>
+          <p className="text-muted-foreground mt-2">Gerencie e compartilhe orçamentos com clientes</p>
+        </div>
+        <button
+          onClick={() => setIsPDVOpen(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-mali-primary to-mali-primary-dark text-mali-secondary rounded-lg hover:shadow-lg transition-all font-semibold whitespace-nowrap"
+        >
+          <Plus className="w-4 h-4" />
+          Adicionar Novo Orçamento
+        </button>
       </div>
 
       {/* Filtros */}
@@ -303,6 +314,9 @@ export default function OrcamentosPage() {
           </div>
         )}
       </Modal>
+
+      {/* Modal PDV - Novo Orçamento/Venda */}
+      <PDVModal isOpen={isPDVOpen} onClose={() => setIsPDVOpen(false)} />
     </div>
   );
 }
