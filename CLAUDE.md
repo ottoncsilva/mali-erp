@@ -31,13 +31,15 @@ Sistema de gestão completo para loja de móveis **Mali Mobile**, construído co
 - [x] Dashboard principal com KPIs
 - [x] Tipos TypeScript para modelo de dados
 
-#### 📝 Fase 2: Core Catálogo (Próxima)
-- [ ] CRUD Categorias
-- [ ] CRUD Fornecedores
-- [ ] CRUD Variáveis de Acabamento
-- [ ] CRUD Produtos com upload de fotos (Firebase Storage)
-- [ ] Cálculo de CMV e precificação
-- [ ] Controle de estoque e alertas
+#### ✅ Fase 2: Core Catálogo (COMPLETO)
+- [x] CRUD Categorias (Status ativo/inativo)
+- [x] CRUD Fornecedores (CNPJ, contatos, prazo entrega)
+- [x] CRUD Variáveis de Acabamento (Tecidos, cores, lateralidades)
+- [x] CRUD Produtos com upload de fotos (Firebase Storage)
+- [x] Cálculo automático de CMV (Custo + ICMS + IPI + Frete)
+- [x] Precificação com Pontuação (Padrão ou Especial)
+- [x] Controle de estoque com alertas
+- [x] Configurações globais (Pontuação Padrão, Travas)
 
 #### 🛒 Fase 3: Balcão de Vendas (Motor)
 - [ ] Interface PDV com busca de produtos
@@ -114,6 +116,50 @@ Pontuação Real = CMV / Preço Aplicado
 - Gerência: Não pode cobrar com Pontuação < 1.5
 - Admin: Sem limites
 
+## 🔧 Hooks Reutilizáveis
+
+### useFirestore.ts
+- `useCollection<T>(collectionName)` - Fetch real-time de collection
+- `useAddDocument(collectionName)` - Add novo documento
+- `useUpdateDocument(collectionName)` - Atualiza documento
+- `useDeleteDocument(collectionName)` - Deleta documento
+
+### useStorageUpload.ts
+- `uploadFile(file, path)` - Upload de arquivo para Firebase Storage
+- `deleteFile(path)` - Deleta arquivo do Storage
+
+## 📦 Componentes UI Reutilizáveis
+
+### Table.tsx
+```tsx
+<Table 
+  columns={[{ header: 'Nome', accessor: 'nome', render: (val, row) => ... }]}
+  data={dados}
+  loading={isLoading}
+/>
+```
+
+### Modal.tsx
+```tsx
+<Modal 
+  isOpen={isOpen} 
+  title="Título" 
+  onClose={handleClose}
+  size="lg"
+>
+  Conteúdo do modal
+</Modal>
+```
+
+## 📍 Rotas Implementadas
+
+### Catálogo
+- `/dashboard/produtos` - CRUD Produtos com fotos
+- `/dashboard/configuracoes/categorias` - CRUD Categorias
+- `/dashboard/fornecedores` - CRUD Fornecedores
+- `/dashboard/configuracoes/acabamentos` - CRUD Acabamentos
+- `/dashboard/precificacao` - Configuração de Pontuação e Travas
+
 ---
 
-**Última atualização**: 2026-06-06 - Fase 1 Completa ✅
+**Última atualização**: 2026-06-06 - Fase 2 Completa ✅
