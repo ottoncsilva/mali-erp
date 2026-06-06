@@ -60,13 +60,7 @@ export default function OrcamentoPublicoPage({ params }: PageProps) {
           getDocs(collection(db, 'produtos')),
           getDocs(collection(db, 'variaveis_acabamento')),
         ]);
-<<<<<<< HEAD
-        setProdutos(
-          produtosSnap.docs.map((d) => ({ ...(d.data() as Produto), id: d.id }))
-        );
-=======
         setProdutos(produtosSnap.docs.map((d) => ({ ...(d.data() as Produto), id: d.id })));
->>>>>>> claude/gifted-faraday-EQ1mP
         setAcabamentos(
           acabamentosSnap.docs.map((d) => ({ ...(d.data() as VariavelAcabamento), id: d.id }))
         );
@@ -181,13 +175,9 @@ export default function OrcamentoPublicoPage({ params }: PageProps) {
                         </div>
                         <div>
                           <span className="text-muted-foreground">Preço Unitário:</span>
-<<<<<<< HEAD
-                          <p className="font-semibold text-foreground">R$ {(item.precoAplicado ?? 0).toFixed(2)}</p>
-=======
                           <p className="font-semibold text-foreground">
                             R$ {(item.precoAplicado ?? 0).toFixed(2)}
                           </p>
->>>>>>> claude/gifted-faraday-EQ1mP
                         </div>
                         <div>
                           <span className="text-muted-foreground">Subtotal:</span>
@@ -208,29 +198,17 @@ export default function OrcamentoPublicoPage({ params }: PageProps) {
               <div className="space-y-3">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Subtotal:</span>
-<<<<<<< HEAD
-                  <span className="font-medium">R$ {orcamento.resumoVisual?.subtotal?.toFixed(2) ?? '0.00'}</span>
-                </div>
-                <div className="flex justify-between text-sm text-orange-600">
-                  <span>Desconto Oferecido:</span>
-                  <span className="font-bold">-R$ {orcamento.resumoVisual?.valorDescontos?.toFixed(2) ?? '0.00'}</span>
-=======
                   <span className="font-medium">R$ {subtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm text-orange-600">
                   <span>Desconto Oferecido:</span>
                   <span className="font-bold">-R$ {valorDescontos.toFixed(2)}</span>
->>>>>>> claude/gifted-faraday-EQ1mP
                 </div>
                 <div className="h-px bg-mali-primary/30"></div>
                 <div className="flex justify-between items-center">
                   <span className="text-lg font-bold text-foreground">TOTAL:</span>
                   <span className="text-3xl font-bold text-mali-primary">
-<<<<<<< HEAD
-                    R$ {orcamento.resumoVisual?.totalFinal?.toFixed(2) ?? '0.00'}
-=======
                     R$ {totalFinal.toFixed(2)}
->>>>>>> claude/gifted-faraday-EQ1mP
                   </span>
                 </div>
               </div>
@@ -249,9 +227,6 @@ export default function OrcamentoPublicoPage({ params }: PageProps) {
             {/* Ações */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <a
-<<<<<<< HEAD
-                href={`https://wa.me/${cliente?.telefoneWhatsapp?.replace(/\D/g, '')}?text=Olá! Gostaria de confirmar o orçamento nº ${orcamento.id.substring(0, 8).toUpperCase()} no valor de R$ ${orcamento.resumoVisual?.totalFinal?.toFixed(2) ?? '0.00'}. Segue o link: ${typeof window !== 'undefined' ? window.location.href : ''}`}
-=======
                 href={`https://wa.me/${clienteTelefone.replace(/\D/g, '')}?text=${encodeURIComponent(
                   `Olá! Gostaria de confirmar o orçamento nº ${orcamento.id
                     .substring(0, 8)
@@ -259,7 +234,6 @@ export default function OrcamentoPublicoPage({ params }: PageProps) {
                     typeof window !== 'undefined' ? window.location.href : ''
                   }`
                 )}`}
->>>>>>> claude/gifted-faraday-EQ1mP
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center justify-center gap-2 px-6 py-3 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors font-semibold"

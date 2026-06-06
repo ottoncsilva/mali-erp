@@ -8,7 +8,7 @@ const configItems = [
     title: 'Precificação',
     description: 'Configure pontuação padrão e travas por perfil',
     icon: <DollarSign className="w-6 h-6" />,
-    href: '/dashboard/precificacao',
+    href: '/dashboard/configuracoes/precificacao',
     color: 'from-mali-primary to-mali-primary-dark',
   },
   {

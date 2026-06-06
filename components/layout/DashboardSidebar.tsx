@@ -55,7 +55,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   {
     label: 'Dashboard',
-    href: '/',
+    href: '/dashboard',
     icon: <LayoutDashboard className="w-4 h-4" />,
   },
 
@@ -66,13 +66,13 @@ const navItems: NavItem[] = [
     children: [
       {
         label: 'Clientes',
-        href: '/clientes',
+        href: '/dashboard/clientes',
         icon: <User className="w-4 h-4" />,
         requiredProfiles: ['admin', 'gerencia', 'vendedor'],
       },
       {
         label: 'Orçamentos',
-        href: '/orcamentos',
+        href: '/dashboard/orcamentos',
         icon: <FileText className="w-4 h-4" />,
         requiredProfiles: ['admin', 'gerencia', 'vendedor'],
       },
@@ -87,13 +87,13 @@ const navItems: NavItem[] = [
     children: [
       {
         label: 'PDV',
-        href: '/balcao',
+        href: '/dashboard/balcao',
         icon: <ShoppingCart className="w-4 h-4" />,
         requiredProfiles: ['admin', 'gerencia', 'vendedor'],
       },
       {
         label: 'Carteira',
-        href: '/carteira',
+        href: '/dashboard/carteira',
         icon: <Briefcase className="w-4 h-4" />,
         requiredProfiles: ['admin', 'gerencia', 'vendedor'],
       },
@@ -108,12 +108,12 @@ const navItems: NavItem[] = [
     children: [
       {
         label: 'Entregas',
-        href: '/entregas',
+        href: '/dashboard/entregas',
         icon: <Truck className="w-4 h-4" />,
       },
       {
         label: 'Assistência Técnica',
-        href: '/assistencia',
+        href: '/dashboard/assistencia',
         icon: <Wrench className="w-4 h-4" />,
       },
     ],
@@ -127,17 +127,17 @@ const navItems: NavItem[] = [
     children: [
       {
         label: 'Contas a Receber',
-        href: '/financeiro',
+        href: '/dashboard/financeiro',
         icon: <DollarSign className="w-4 h-4" />,
       },
       {
         label: 'Relatórios',
-        href: '/relatorios',
+        href: '/dashboard/relatorios',
         icon: <BarChart3 className="w-4 h-4" />,
       },
       {
         label: 'DRE',
-        href: '/apuracao',
+        href: '/dashboard/apuracao',
         icon: <BarChart3 className="w-4 h-4" />,
       },
     ],
@@ -151,17 +151,17 @@ const navItems: NavItem[] = [
     children: [
       {
         label: 'Produtos',
-        href: '/produtos',
+        href: '/dashboard/produtos',
         icon: <Package className="w-4 h-4" />,
       },
       {
         label: 'Categorias',
-        href: '/configuracoes/categorias',
+        href: '/dashboard/configuracoes/categorias',
         icon: <CheckSquare className="w-4 h-4" />,
       },
       {
         label: 'Fornecedores',
-        href: '/fornecedores',
+        href: '/dashboard/fornecedores',
         icon: <Truck className="w-4 h-4" />,
       },
     ],
@@ -175,18 +175,18 @@ const navItems: NavItem[] = [
     children: [
       {
         label: 'Precificação',
-        href: '/configuracoes/precificacao',
+        href: '/dashboard/configuracoes/precificacao',
         icon: <DollarSign className="w-4 h-4" />,
         requiredProfiles: ['admin', 'gerencia'],
       },
       {
         label: 'Acabamentos',
-        href: '/configuracoes/acabamentos',
+        href: '/dashboard/configuracoes/acabamentos',
         icon: <Wrench className="w-4 h-4" />,
       },
       {
         label: 'Gerais',
-        href: '/configuracoes',
+        href: '/dashboard/configuracoes',
         icon: <Settings className="w-4 h-4" />,
         requiredProfiles: ['admin'],
       },
@@ -316,7 +316,7 @@ export default function DashboardSidebar({ isOpen, onToggle }: DashboardSidebarP
     >
       {/* Logo */}
       <div className="p-4 border-b border-border">
-        <Link href="/" className="flex items-center gap-3">
+        <Link href="/dashboard" className="flex items-center gap-3">
           <div className="w-10 h-10 bg-gradient-to-br from-mali-primary to-mali-primary-dark rounded-lg flex items-center justify-center flex-shrink-0">
             <span className="text-lg font-bold text-mali-secondary">M</span>
           </div>

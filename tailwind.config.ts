@@ -11,11 +11,6 @@ const config: Config = {
     './components/**/*.{js,ts,jsx,tsx,mdx}',
     './app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
-<<<<<<< HEAD
-  theme: {},
-  plugins: [],
-=======
->>>>>>> claude/gifted-faraday-EQ1mP
 };
 
 export default config;

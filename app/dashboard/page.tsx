@@ -164,7 +164,7 @@ export default function DashboardPage() {
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Link
-          href="/produtos"
+          href="/dashboard/produtos"
           className="bg-card rounded-lg border border-border p-6 hover:border-mali-primary/50 transition-colors"
         >
           <Package className="w-6 h-6 text-mali-primary mb-3" />
@@ -175,7 +175,7 @@ export default function DashboardPage() {
         </Link>
 
         <Link
-          href="/balcao"
+          href="/dashboard/balcao"
           className="bg-card rounded-lg border border-border p-6 hover:border-mali-primary/50 transition-colors"
         >
           <Users className="w-6 h-6 text-mali-primary mb-3" />
@@ -186,7 +186,7 @@ export default function DashboardPage() {
         </Link>
 
         <Link
-          href="/balcao"
+          href="/dashboard/balcao"
           className="bg-card rounded-lg border border-border p-6 hover:border-mali-primary/50 transition-colors"
         >
           <DollarSign className="w-6 h-6 text-mali-primary mb-3" />
