@@ -1,9 +1,13 @@
 'use client';
 
-import { storage } from '@/lib/firebase/config';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { useState, useCallback } from 'react';
 
+/**
+ * Upload de arquivos para o MinIO (via rota de API /api/upload).
+ * As credenciais do MinIO ficam apenas no servidor — nunca no navegador.
+ * Interface mantida igual à anterior (uploadFile/deleteFile) para
+ * compatibilidade com as telas existentes.
+ */
 export function useStorageUpload() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -12,10 +16,17 @@ export function useStorageUpload() {
     setLoading(true);
     setError(null);
     try {
-      const storageRef = ref(storage, path);
-      await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(storageRef);
-      return url;
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('path', path);
+
+      const res = await fetch('/api/upload', { method: 'POST', body: formData });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Erro ao fazer upload');
+      }
+      const data = await res.json();
+      return data.url as string;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao fazer upload';
       setError(message);
@@ -29,8 +40,12 @@ export function useStorageUpload() {
     setLoading(true);
     setError(null);
     try {
-      const storageRef = ref(storage, path);
-      await deleteObject(storageRef);
+      const res = await fetch('/api/upload', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path }),
+      });
+      if (!res.ok) throw new Error('Erro ao deletar arquivo');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao deletar arquivo';
       setError(message);
