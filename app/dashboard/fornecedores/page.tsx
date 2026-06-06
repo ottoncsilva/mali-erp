@@ -52,7 +52,18 @@ export default function FornecedoresPage() {
   };
 
   const handleEdit = (fornecedor: Fornecedor & { id: string }) => {
+<<<<<<< HEAD:app/dashboard/fornecedores/page.tsx
     setFormData({ ...fornecedor, observacoes: fornecedor.observacoes || '' });
+=======
+    setFormData({
+      razaoSocial: fornecedor.razaoSocial,
+      cnpj: fornecedor.cnpj,
+      contatos: fornecedor.contatos,
+      endereco: fornecedor.endereco,
+      observacoes: fornecedor.observacoes || '',
+      prazoEntregaDias: fornecedor.prazoEntregaDias,
+    });
+>>>>>>> claude/gifted-faraday-EQ1mP:app/(dashboard)/fornecedores/page.tsx
     setEditingId(fornecedor.id);
     setIsModalOpen(true);
   };

@@ -1,8 +1,15 @@
 @import "tailwindcss";
 
-@theme inline {
+/*
+ * Mali Mobile ERP - Tema Light (claro)
+ * Tailwind v4 - configuração CSS-first via @theme.
+ * Todas as cores são registradas como tokens, gerando utilities
+ * (bg-*, text-*, border-*, from-*, to-*, ring-*).
+ */
+@theme {
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+<<<<<<< HEAD
 
   /* Cores dinâmicas (mudam com dark mode) */
   --color-background: var(--background);
@@ -94,5 +101,65 @@
   body {
     background-color: var(--background);
     color: var(--foreground);
+=======
+
+  --radius: 0.5rem;
+
+  /* Base - superfícies claras */
+  --color-background: hsl(210 20% 98%);
+  --color-foreground: hsl(215 28% 17%);
+  --color-card: hsl(0 0% 100%);
+  --color-card-foreground: hsl(215 28% 17%);
+  --color-popover: hsl(0 0% 100%);
+  --color-popover-foreground: hsl(215 28% 17%);
+
+  --color-muted: hsl(210 20% 94%);
+  --color-muted-foreground: hsl(215 14% 42%);
+
+  --color-border: hsl(214 20% 88%);
+  --color-input: hsl(214 20% 92%);
+  --color-ring: hsl(44 75% 48%);
+
+  /* Semânticas */
+  --color-primary: hsl(44 75% 48%);
+  --color-primary-foreground: hsl(0 0% 100%);
+  --color-secondary: hsl(210 13% 45%);
+  --color-secondary-foreground: hsl(0 0% 100%);
+  --color-accent: hsl(210 20% 94%);
+  --color-accent-foreground: hsl(215 28% 17%);
+  --color-destructive: hsl(0 72% 51%);
+  --color-destructive-foreground: hsl(0 0% 100%);
+
+  /* Marca Mali */
+  --color-mali-primary: #d4af37;
+  --color-mali-primary-light: #e8c547;
+  --color-mali-primary-dark: #a6860f;
+  --color-mali-secondary: #5a6b7c;
+  --color-mali-secondary-light: #7a8b9c;
+  --color-mali-secondary-dark: #3a4b5c;
+  --color-mali-accent: #ffffff;
+  --color-mali-accent-gray: #f5f5f5;
+
+  /* Gráficos */
+  --color-chart-1: #d4af37;
+  --color-chart-2: #5a6b7c;
+  --color-chart-3: #e11d48;
+  --color-chart-4: #16a34a;
+  --color-chart-5: #7c3aed;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html {
+    background-color: var(--color-background);
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+>>>>>>> claude/gifted-faraday-EQ1mP
   }
 }

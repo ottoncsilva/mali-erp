@@ -142,11 +142,17 @@ export default function BalcaoPage() {
         somaPontuacoes += (item.produto.custoProduto + item.produto.icms + item.produto.ipi + item.produto.frete) / item.precoAplicado;
       });
 
+      // Denormaliza dados do cliente para exibição na página pública
+      // sem expor a coleção de clientes.
+      const clienteSelecionado = clientes.find((c) => c.id === clienteId);
+
       const atendimento = {
         tipo: tipoAtendimento,
         pipelineVendedor: 'novo',
         status: tipoAtendimento === 'orcamento' ? 'pendente' : 'finalizado',
         clienteId,
+        clienteNome: clienteSelecionado?.nome || '',
+        clienteTelefone: clienteSelecionado?.telefoneWhatsapp || '',
         vendedorId: userProfile?.uid,
         itens: carrinho.map((item) => ({
           produtoId: item.produtoId,

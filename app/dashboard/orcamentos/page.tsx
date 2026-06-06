@@ -244,16 +244,28 @@ export default function OrcamentosPage() {
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Subtotal:</span>
+<<<<<<< HEAD:app/dashboard/orcamentos/page.tsx
                     <span className="font-medium">R$ {selectedOrc.resumoVisual?.subtotal?.toFixed(2) ?? '0.00'}</span>
                   </div>
                   <div className="flex justify-between text-orange-600">
                     <span>Desconto:</span>
                     <span className="font-medium">-R$ {selectedOrc.resumoVisual?.valorDescontos?.toFixed(2) ?? '0.00'}</span>
+=======
+                    <span className="font-medium">R$ {(selectedOrc.resumoVisual?.subtotal ?? 0).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-orange-600">
+                    <span>Desconto:</span>
+                    <span className="font-medium">-R$ {(selectedOrc.resumoVisual?.valorDescontos ?? 0).toFixed(2)}</span>
+>>>>>>> claude/gifted-faraday-EQ1mP:app/(dashboard)/orcamentos/page.tsx
                   </div>
                   <div className="flex justify-between border-t border-border pt-1 mt-1">
                     <span className="font-semibold">Total:</span>
                     <span className="font-bold text-mali-primary text-lg">
+<<<<<<< HEAD:app/dashboard/orcamentos/page.tsx
                       R$ {selectedOrc.resumoVisual?.totalFinal?.toFixed(2) ?? '0.00'}
+=======
+                      R$ {(selectedOrc.resumoVisual?.totalFinal ?? 0).toFixed(2)}
+>>>>>>> claude/gifted-faraday-EQ1mP:app/(dashboard)/orcamentos/page.tsx
                     </span>
                   </div>
                 </div>

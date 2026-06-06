@@ -114,7 +114,27 @@ export default function ProdutosPage() {
   };
 
   const handleEdit = (produto: Produto & { id: string }) => {
+<<<<<<< HEAD:app/dashboard/produtos/page.tsx
     setFormData({ ...produto, pontuacaoEspecial: produto.pontuacaoEspecial ?? 2.0 });
+=======
+    setFormData({
+      nome: produto.nome,
+      sku: produto.sku,
+      categoriaId: produto.categoriaId,
+      fornecedorId: produto.fornecedorId,
+      acabamentosDisponiveis: produto.acabamentosDisponiveis,
+      fotoPrincipal: produto.fotoPrincipal,
+      custoProduto: produto.custoProduto,
+      icms: produto.icms,
+      ipi: produto.ipi,
+      frete: produto.frete,
+      tipoPontuacao: produto.tipoPontuacao,
+      pontuacaoEspecial: produto.pontuacaoEspecial || 2.0,
+      estoqueMinimo: produto.estoqueMinimo,
+      estoqueAtual: produto.estoqueAtual,
+      status: produto.status,
+    });
+>>>>>>> claude/gifted-faraday-EQ1mP:app/(dashboard)/produtos/page.tsx
     setFotos(produto.fotos || []);
     setEditingId(produto.id);
     setIsModalOpen(true);
@@ -151,7 +171,11 @@ export default function ProdutosPage() {
     {
       header: 'CMV',
       accessor: 'custoProduto',
+<<<<<<< HEAD:app/dashboard/produtos/page.tsx
       render: (_: string, row: Produto) => `R$ ${((row.custoProduto + row.icms + row.ipi + row.frete) || 0).toFixed(2)}`,
+=======
+      render: (_: number, row: Produto) => `R$ ${((row.custoProduto + row.icms + row.ipi + row.frete) || 0).toFixed(2)}`,
+>>>>>>> claude/gifted-faraday-EQ1mP:app/(dashboard)/produtos/page.tsx
     },
     {
       header: 'Status',

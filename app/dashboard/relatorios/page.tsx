@@ -131,7 +131,11 @@ export default function RelatoriosPage() {
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
+<<<<<<< HEAD:app/dashboard/relatorios/page.tsx
                   <Tooltip formatter={(val: unknown) => typeof val === 'number' ? `R$ ${val.toFixed(2)}` : ''} />
+=======
+                  <Tooltip formatter={(val) => (typeof val === 'number' ? `R$ ${val.toFixed(2)}` : val)} />
+>>>>>>> claude/gifted-faraday-EQ1mP:app/(dashboard)/relatorios/page.tsx
                 </PieChart>
               </ResponsiveContainer>
             </div>

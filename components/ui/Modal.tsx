@@ -22,10 +22,16 @@ export function Modal({ isOpen, title, children, onClose, size = 'md' }: ModalPr
   }[size];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className={`bg-card rounded-lg border border-border shadow-xl w-full ${sizeClass}`}>
+    <div
+      className="fixed inset-0 z-50 flex items-start sm:items-center justify-center bg-black/50 p-4 overflow-y-auto"
+      onClick={onClose}
+    >
+      <div
+        className={`bg-card rounded-lg border border-border shadow-xl w-full ${sizeClass} my-8 max-h-[90vh] flex flex-col`}
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-border">
+        <div className="flex items-center justify-between p-6 border-b border-border flex-shrink-0">
           <h2 className="text-lg font-semibold text-foreground">{title}</h2>
           <button
             onClick={onClose}
@@ -37,7 +43,7 @@ export function Modal({ isOpen, title, children, onClose, size = 'md' }: ModalPr
         </div>
 
         {/* Content */}
-        <div className="p-6">{children}</div>
+        <div className="p-6 overflow-y-auto flex-1">{children}</div>
       </div>
     </div>
   );
