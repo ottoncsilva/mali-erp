@@ -13,6 +13,11 @@ interface CarrinhoSimuladorProps {
   pontuacaoPadrao: number;
   limitePerfil: number;
   acabamentos: (VariavelAcabamento & { id: string })[];
+  /** Mostra o seletor de modalidade (estoque/encomenda) — apenas em vendas. */
+  mostrarModalidade?: boolean;
+  /** Saldo disponível por produtoId (showroom + depósito). */
+  disponibilidade?: Record<string, number>;
+  onUpdateModalidade?: (index: number, modalidade: 'estoque' | 'encomenda') => void;
 }
 
 export function CarrinhoSimulador({
@@ -22,6 +27,9 @@ export function CarrinhoSimulador({
   pontuacaoPadrao,
   limitePerfil,
   acabamentos,
+  mostrarModalidade,
+  disponibilidade,
+  onUpdateModalidade,
 }: CarrinhoSimuladorProps) {
   const [parcelasCartao, setParcelasCartao] = useState(1);
   const [desconto, setDesconto] = useState(0);
@@ -140,6 +148,33 @@ export function CarrinhoSimulador({
                       </p>
                     </div>
                   </div>
+
+                  {/* Modalidade de fornecimento (apenas em vendas) */}
+                  {mostrarModalidade && (() => {
+                    const disp = disponibilidade?.[item.produtoId] ?? 0;
+                    const semEstoque = disp < item.quantidade;
+                    const modalidade = item.modalidade ?? (semEstoque ? 'encomenda' : 'estoque');
+                    return (
+                      <div className="flex items-center justify-between gap-2 text-xs p-2 bg-background rounded">
+                        <div>
+                          <span className="text-muted-foreground">Disponível em estoque: </span>
+                          <span className={`font-semibold ${semEstoque ? 'text-orange-600' : 'text-emerald-600'}`}>
+                            {disp}
+                          </span>
+                        </div>
+                        <select
+                          value={modalidade}
+                          onChange={(e) => onUpdateModalidade?.(idx, e.target.value as 'estoque' | 'encomenda')}
+                          className="px-2 py-1 bg-card border border-border rounded text-xs focus:outline-none focus:ring-1 focus:ring-mali-primary"
+                        >
+                          <option value="estoque" disabled={semEstoque}>
+                            Vender do estoque
+                          </option>
+                          <option value="encomenda">Sob encomenda (gera compra)</option>
+                        </select>
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })}

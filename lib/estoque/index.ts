@@ -16,3 +16,5 @@ export {
 export { proximoNumero } from './numeracao';
 
 export { registrarNotaFiscal } from './compras';
+
+export { baixarEstoquePorVenda, dispararPedidosEncomenda } from './vendas';

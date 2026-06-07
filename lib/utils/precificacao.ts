@@ -9,6 +9,9 @@ export interface ItemCarrinho {
   quantidade: number;
   precoAplicado: number; // Preço que será cobrado
   desconto: number; // Desconto em reais
+  // Modalidade de fornecimento na venda:
+  // 'estoque' = baixa do estoque disponível; 'encomenda' = dispara pedido de compra.
+  modalidade?: 'estoque' | 'encomenda';
 }
 
 export interface CondicaoPagamento {
