@@ -268,12 +268,18 @@ export function OrcamentoPDF({
         </View>
 
         {/* Payment Info */}
-        {atendimento.pagamentos && atendimento.pagamentos.length > 0 && (
+        {atendimento.pagamento && (
           <View style={styles.paymentInfo}>
-            <Text style={styles.paymentTitle}>FORMAS DE PAGAMENTO</Text>
-            {atendimento.pagamentos.map((pag, idx) => (
-              <Text key={idx}>
-                {pag.forma.toUpperCase()} {pag.parcelas && `- ${pag.parcelas}x`}
+            <Text style={styles.paymentTitle}>
+              CONDIÇÃO DE PAGAMENTO: {atendimento.pagamento.condicaoNome}
+            </Text>
+            {atendimento.pagamento.entrada > 0 && (
+              <Text>Entrada: R$ {atendimento.pagamento.entrada.toFixed(2)}</Text>
+            )}
+            {atendimento.pagamento.parcelas.map((parc) => (
+              <Text key={parc.numero}>
+                Parcela {parc.numero}: R$ {parc.valor.toFixed(2)} —{' '}
+                {new Date(parc.vencimento).toLocaleDateString('pt-BR')}
               </Text>
             ))}
           </View>
