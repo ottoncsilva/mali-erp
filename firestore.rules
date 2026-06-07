@@ -93,6 +93,11 @@ service cloud.firestore {
       allow read, write: if isAuth();
     }
 
+    // Depósitos (localizações físicas de estoque cadastráveis).
+    match /depositos/{id} {
+      allow read, write: if isAuth();
+    }
+
     // Bloqueio padrão para qualquer outra coleção não listada
     match /{document=**} {
       allow read, write: if false;
