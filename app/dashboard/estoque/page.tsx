@@ -2,128 +2,174 @@
 
 import { useMemo, useState } from 'react';
 import { useCollection, useAuth } from '@/lib/hooks';
+import { useEstoqueAgregado } from '@/lib/hooks/useEstoqueAgregado';
 import { Table } from '@/components/ui/Table';
 import { TransferenciaModal } from '@/components/modules/estoque/TransferenciaModal';
 import { AjusteModal } from '@/components/modules/estoque/AjusteModal';
-import { LOCALIZACOES, LOCALIZACOES_DISPONIVEIS } from '@/types';
-import type { EstoqueItem, Produto, MovimentacaoEstoque, LocalizacaoEstoque } from '@/types';
+import { FiltrosEstoque } from '@/components/modules/estoque/FiltrosEstoque';
+import { DepositBreakdownPopover } from '@/components/ui/DepositBreakdownPopover';
+import { LOCALIZACOES } from '@/types';
+import type {
+  Deposito,
+  MovimentacaoEstoque,
+  LocalizacaoEstoque,
+  FiltroEstoque,
+} from '@/types';
+import type { EstoqueAgregado } from '@/lib/estoque/agregacao';
 import { formatData } from '@/lib/utils/format';
 import { Boxes, Truck, AlertTriangle, PackageCheck, ArrowLeftRight, SlidersHorizontal } from 'lucide-react';
 
-interface LinhaEstoque {
-  id: string;
-  nome: string;
-  sku: string;
-  estoqueMinimo: number;
-  saldos: Record<LocalizacaoEstoque, number>;
-  total: number;
-  disponivel: number;
-  abaixoMinimo: boolean;
-}
-
 const LOCAIS = Object.keys(LOCALIZACOES) as LocalizacaoEstoque[];
+
+// Converte EstoqueAgregado para o formato { saldos } esperado pelos modais.
+function paraSaldos(linha: EstoqueAgregado) {
+  const saldos = LOCAIS.reduce((acc, l) => {
+    acc[l] = linha.porLocalizacao[l]?.quantidade || 0;
+    return acc;
+  }, {} as Record<LocalizacaoEstoque, number>);
+  return { id: linha.produtoId, nome: linha.produtoNome, sku: linha.produtoSku, saldos };
+}
 
 export default function EstoquePage() {
   const { userProfile } = useAuth();
-  const { data: estoque, loading: loadingEstoque } = useCollection<EstoqueItem>('estoque');
-  const { data: produtos, loading: loadingProdutos } = useCollection<Produto>('produtos');
+  const { agregado, loading } = useEstoqueAgregado();
+  const { data: depositos } = useCollection<Deposito>('depositos');
   const { data: movimentacoes, loading: loadingMov } = useCollection<MovimentacaoEstoque>('movimentacoes_estoque');
 
   const [aba, setAba] = useState<'saldos' | 'movimentacoes'>('saldos');
-  const [transferindo, setTransferindo] = useState<LinhaEstoque | null>(null);
-  const [ajustando, setAjustando] = useState<LinhaEstoque | null>(null);
-  const [filtro, setFiltro] = useState('');
+  const [transferindo, setTransferindo] = useState<ReturnType<typeof paraSaldos> | null>(null);
+  const [ajustando, setAjustando] = useState<ReturnType<typeof paraSaldos> | null>(null);
+  const [filtros, setFiltros] = useState<FiltroEstoque>({
+    depositoIds: [],
+    statusEstoque: 'todos',
+    textoBusca: '',
+  });
 
-  // Agrupa saldos por produto.
-  const linhas = useMemo<LinhaEstoque[]>(() => {
-    return produtos.map((p) => {
-      const itens = estoque.filter((e) => e.produtoId === p.id);
-      const saldos = LOCAIS.reduce((acc, l) => {
-        acc[l] = itens.filter((i) => i.localizacao === l).reduce((s, i) => s + (i.quantidade || 0), 0);
-        return acc;
-      }, {} as Record<LocalizacaoEstoque, number>);
-      const total = LOCAIS.reduce((s, l) => s + saldos[l], 0);
-      const disponivel = LOCALIZACOES_DISPONIVEIS.reduce((s, l) => s + saldos[l], 0);
-      return {
-        id: p.id,
-        nome: p.nome,
-        sku: p.sku,
-        estoqueMinimo: p.estoqueMinimo || 0,
-        saldos,
-        total,
-        disponivel,
-        abaixoMinimo: disponivel < (p.estoqueMinimo || 0),
-      };
-    });
-  }, [produtos, estoque]);
-
+  // Aplica filtros sobre o estoque agregado.
   const linhasFiltradas = useMemo(() => {
-    const f = filtro.trim().toLowerCase();
-    if (!f) return linhas;
-    return linhas.filter((l) => l.nome.toLowerCase().includes(f) || l.sku.toLowerCase().includes(f));
-  }, [linhas, filtro]);
+    return agregado.filter((linha) => {
+      // Busca por texto
+      if (filtros.textoBusca) {
+        const termo = filtros.textoBusca.toLowerCase();
+        if (
+          !linha.produtoNome.toLowerCase().includes(termo) &&
+          !linha.produtoSku.toLowerCase().includes(termo)
+        ) {
+          return false;
+        }
+      }
+
+      // Status do estoque
+      if (filtros.statusEstoque !== 'todos' && linha.statusEstoque !== filtros.statusEstoque) {
+        return false;
+      }
+
+      // Depósitos selecionados
+      if (filtros.depositoIds.length > 0) {
+        const temDeposito = linha.porLocalizacao.deposito?.depositos?.some((d) =>
+          filtros.depositoIds.includes(d.depositoId)
+        );
+        if (!temDeposito) return false;
+      }
+
+      return true;
+    });
+  }, [agregado, filtros]);
 
   // KPIs
   const kpis = useMemo(() => {
-    const totalDisponivel = linhas.reduce((s, l) => s + l.disponivel, 0);
-    const baixoEstoque = linhas.filter((l) => l.abaixoMinimo).length;
-    const emTransito = linhas.reduce((s, l) => s + l.saldos.comprado, 0);
-    const emEntrega = linhas.reduce((s, l) => s + l.saldos.entrega, 0);
+    const totalDisponivel = agregado.reduce((s, l) => s + l.totalDisponivel, 0);
+    const baixoEstoque = agregado.filter((l) => l.statusEstoque === 'abaixo' || l.statusEstoque === 'zerado').length;
+    const emTransito = agregado.reduce((s, l) => s + (l.porLocalizacao.comprado?.quantidade || 0), 0);
+    const emEntrega = agregado.reduce((s, l) => s + (l.porLocalizacao.entrega?.quantidade || 0), 0);
     return { totalDisponivel, baixoEstoque, emTransito, emEntrega };
-  }, [linhas]);
+  }, [agregado]);
 
   const usuario = { id: userProfile?.uid || '', nome: userProfile?.nome };
 
   const colunasSaldos = [
     {
       header: 'Produto',
-      accessor: 'nome',
-      render: (_: any, row: LinhaEstoque) => (
-        <div>
-          <p className="font-medium text-foreground flex items-center gap-2">
-            {row.nome}
-            {row.abaixoMinimo && (
-              <span title="Abaixo do estoque mínimo">
-                <AlertTriangle className="w-4 h-4 text-amber-500" />
-              </span>
-            )}
-          </p>
-          <p className="text-xs text-muted-foreground">{row.sku}</p>
+      accessor: 'produtoNome',
+      render: (_: any, row: EstoqueAgregado) => (
+        <div className="flex items-center gap-3">
+          {row.fotoPrincipal && (
+            <img src={row.fotoPrincipal} alt={row.produtoNome} className="w-10 h-10 rounded object-cover" />
+          )}
+          <div>
+            <p className="font-medium text-foreground flex items-center gap-2">
+              {row.produtoNome}
+              {row.statusEstoque === 'abaixo' && (
+                <span title="Abaixo do estoque mínimo">
+                  <AlertTriangle className="w-4 h-4 text-amber-500" />
+                </span>
+              )}
+            </p>
+            <p className="text-xs text-muted-foreground">{row.produtoSku}</p>
+          </div>
         </div>
       ),
     },
-    { header: 'Comprado', accessor: 'comprado', render: (_: any, r: LinhaEstoque) => r.saldos.comprado },
-    { header: 'Showroom', accessor: 'showroom', render: (_: any, r: LinhaEstoque) => r.saldos.showroom },
-    { header: 'Depósito', accessor: 'deposito', render: (_: any, r: LinhaEstoque) => r.saldos.deposito },
-    { header: 'Entrega', accessor: 'entrega', render: (_: any, r: LinhaEstoque) => r.saldos.entrega },
+    {
+      header: 'Estoque Total',
+      accessor: 'totalGeral',
+      render: (_: any, row: EstoqueAgregado) => (
+        <div className="group relative inline-block cursor-help">
+          <span className="font-semibold text-foreground border-b border-dashed border-muted-foreground/50">
+            {row.totalGeral} un
+          </span>
+          <DepositBreakdownPopover linha={row} />
+        </div>
+      ),
+    },
     {
       header: 'Disponível',
-      accessor: 'disponivel',
-      render: (_: any, r: LinhaEstoque) => (
-        <span className={`font-semibold ${r.abaixoMinimo ? 'text-amber-600' : 'text-foreground'}`}>
-          {r.disponivel}
+      accessor: 'totalDisponivel',
+      render: (_: any, r: EstoqueAgregado) => (
+        <span
+          className={`font-semibold ${
+            r.statusEstoque === 'zerado'
+              ? 'text-red-600'
+              : r.statusEstoque === 'abaixo'
+              ? 'text-amber-600'
+              : 'text-emerald-600'
+          }`}
+        >
+          {r.totalDisponivel}
         </span>
       ),
     },
     {
       header: 'Mín.',
       accessor: 'estoqueMinimo',
-      render: (_: any, r: LinhaEstoque) => <span className="text-muted-foreground">{r.estoqueMinimo}</span>,
+      render: (_: any, r: EstoqueAgregado) => <span className="text-muted-foreground">{r.estoqueMinimo}</span>,
+    },
+    {
+      header: 'Status',
+      accessor: 'statusEstoque',
+      render: (_: any, r: EstoqueAgregado) => {
+        const cfg = {
+          zerado: { label: 'Zerado', cls: 'bg-red-500/20 text-red-600' },
+          abaixo: { label: 'Abaixo do mín.', cls: 'bg-amber-500/20 text-amber-600' },
+          normal: { label: 'Normal', cls: 'bg-emerald-500/20 text-emerald-600' },
+        }[r.statusEstoque];
+        return <span className={`px-2 py-1 rounded text-xs font-medium ${cfg.cls}`}>{cfg.label}</span>;
+      },
     },
     {
       header: 'Ações',
-      accessor: 'id',
-      render: (_: any, row: LinhaEstoque) => (
+      accessor: 'produtoId',
+      render: (_: any, row: EstoqueAgregado) => (
         <div className="flex gap-2">
           <button
-            onClick={() => setTransferindo(row)}
+            onClick={() => setTransferindo(paraSaldos(row))}
             className="p-1 hover:bg-background rounded"
             title="Transferir entre localizações"
           >
             <ArrowLeftRight className="w-4 h-4 text-mali-primary" />
           </button>
           <button
-            onClick={() => setAjustando(row)}
+            onClick={() => setAjustando(paraSaldos(row))}
             className="p-1 hover:bg-background rounded"
             title="Ajustar estoque"
           >
@@ -135,11 +181,7 @@ export default function EstoquePage() {
   ];
 
   const movimentacoesOrdenadas = useMemo(() => {
-    return [...movimentacoes].sort((a, b) => {
-      const da = toMillis(a.criadoEm);
-      const db = toMillis(b.criadoEm);
-      return db - da;
-    });
+    return [...movimentacoes].sort((a, b) => toMillis(b.criadoEm) - toMillis(a.criadoEm));
   }, [movimentacoes]);
 
   const colunasMov = [
@@ -205,18 +247,17 @@ export default function EstoquePage() {
 
       {aba === 'saldos' && (
         <div className="space-y-4">
-          <input
-            type="text"
-            value={filtro}
-            onChange={(e) => setFiltro(e.target.value)}
-            placeholder="Buscar por nome ou SKU..."
-            className="w-full sm:w-80 px-3 py-2 bg-background border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-mali-primary"
+          <FiltrosEstoque
+            filtros={filtros}
+            onChange={setFiltros}
+            depositos={depositos as (Deposito & { id: string })[]}
           />
           <Table
             columns={colunasSaldos}
             data={linhasFiltradas}
-            loading={loadingEstoque || loadingProdutos}
-            emptyMessage="Nenhum produto cadastrado. Cadastre produtos e registre compras para gerar estoque."
+            loading={loading}
+            allowOverflow
+            emptyMessage="Nenhum produto encontrado. Cadastre produtos e registre compras para gerar estoque."
           />
         </div>
       )}
