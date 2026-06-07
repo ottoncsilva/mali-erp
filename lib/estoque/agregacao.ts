@@ -29,13 +29,19 @@ export interface EstoqueAgregado {
 }
 
 /**
- * Agrega informações de estoque por produto
- * Calcula totais por localização e status do estoque
+ * Agrega informações de estoque por produto.
+ *
+ * Itera sobre TODOS os produtos cadastrados (mesmo sem nenhum registro de
+ * estoque — aparecem zerados) e calcula totais por localização e status.
+ *
+ * `emTransitoPorProduto` traz a quantidade comprada mas ainda não recebida
+ * (pedidos de compra em aberto), somada à localização "comprado".
  */
 export function agregaEstoque(
   itens: (EstoqueItem & { id: string })[],
   produtos: Map<string, Produto & { id: string }>,
-  depositos: Map<string, Deposito & { id: string }>
+  depositos: Map<string, Deposito & { id: string }>,
+  emTransitoPorProduto: Map<string, number> = new Map()
 ): EstoqueAgregado[] {
   // Agrupar itens por produto
   const porProduto = new Map<string, EstoqueItem[]>();
@@ -46,13 +52,11 @@ export function agregaEstoque(
     porProduto.get(item.produtoId)!.push(item);
   });
 
-  // Construir estoque agregado
+  // Construir estoque agregado — uma linha por produto cadastrado.
   const agregado: EstoqueAgregado[] = [];
 
-  porProduto.forEach((estoqueItems, produtoId) => {
-    const produto = produtos.get(produtoId);
-    if (!produto) return; // Produto não encontrado, pular
-
+  produtos.forEach((produto, produtoId) => {
+    const estoqueItems = porProduto.get(produtoId) || [];
     const porLocalizacao: EstoqueAgregado['porLocalizacao'] = {};
     let totalDisponivel = 0;
     let totalGeral = 0;
@@ -98,7 +102,18 @@ export function agregaEstoque(
       }
     });
 
-    // Determinar status do estoque
+    // Adiciona o que foi comprado mas ainda não chegou (pedidos em aberto).
+    const emTransito = emTransitoPorProduto.get(produtoId) || 0;
+    if (emTransito > 0) {
+      const atual = porLocalizacao.comprado?.quantidade || 0;
+      porLocalizacao.comprado = {
+        quantidade: atual + emTransito,
+        quantidadeReservada: porLocalizacao.comprado?.quantidadeReservada || 0,
+      };
+      totalGeral += emTransito;
+    }
+
+    // Determinar status do estoque (baseado no disponível para venda)
     let statusEstoque: 'abaixo' | 'normal' | 'zerado';
     if (totalDisponivel === 0) {
       statusEstoque = 'zerado';

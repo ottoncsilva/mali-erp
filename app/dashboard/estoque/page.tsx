@@ -6,7 +6,7 @@ import { useEstoqueAgregado } from '@/lib/hooks/useEstoqueAgregado';
 import { Table } from '@/components/ui/Table';
 import { TransferenciaModal } from '@/components/modules/estoque/TransferenciaModal';
 import { AjusteModal } from '@/components/modules/estoque/AjusteModal';
-import { FiltrosEstoque } from '@/components/modules/estoque/FiltrosEstoque';
+import { FiltrosEstoque, STATUS_PADRAO } from '@/components/modules/estoque/FiltrosEstoque';
 import { DepositBreakdownPopover } from '@/components/ui/DepositBreakdownPopover';
 import { ProdutoDetailModal } from '@/components/modules/shared/ProdutoDetailModal';
 import { LOCALIZACOES } from '@/types';
@@ -43,7 +43,7 @@ export default function EstoquePage() {
   const [detalhandoId, setDetalhandoId] = useState<string | null>(null);
   const [filtros, setFiltros] = useState<FiltroEstoque>({
     depositoIds: [],
-    statusEstoque: 'todos',
+    statusEstoque: [...STATUS_PADRAO],
     textoBusca: '',
   });
 
@@ -61,8 +61,8 @@ export default function EstoquePage() {
         }
       }
 
-      // Status do estoque
-      if (filtros.statusEstoque !== 'todos' && linha.statusEstoque !== filtros.statusEstoque) {
+      // Status do estoque (seleção múltipla; vazio = todos)
+      if (filtros.statusEstoque.length > 0 && !filtros.statusEstoque.includes(linha.statusEstoque)) {
         return false;
       }
 

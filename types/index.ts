@@ -211,6 +211,32 @@ export interface Deposito {
   atualizadoEm: Date;
 }
 
+// Endereço estruturado (usado por Especificador)
+export interface EnderecoEstruturado {
+  cep: string; // 12345-678
+  rua: string;
+  numero: string;
+  complemento?: string;
+  bairro: string;
+  cidade: string;
+  uf: string;
+}
+
+// Especificadores (indicadores que recebem comissão sobre a venda)
+export interface Especificador {
+  id: string;
+  nome: string;
+  email: string;
+  telefone: string;
+  cpfCnpj: string;
+  endereco: EnderecoEstruturado;
+  pix: string;
+  comissao: number; // percentual 0..100
+  ativo: boolean;
+  criadoEm: Date;
+  atualizadoEm: Date;
+}
+
 // Clientes
 export interface Cliente {
   id: string;
@@ -248,6 +274,11 @@ export interface Atendimento {
   clienteNome?: string;
   clienteTelefone?: string;
   vendedorId: string;
+  // Especificador (indicador) — opcional. Captura comissão no momento da venda.
+  especificadorId?: string;
+  especificadorNome?: string;
+  especificadorComissao?: number; // percentual aplicado
+  especificadorComissaoValor?: number; // valor em R$ a pagar ao especificador
   itens: ItemAtendimento[];
   resumoVisual: {
     subtotal: number; // soma à vista (preço de tabela)
@@ -308,6 +339,7 @@ export interface ContaReceber {
   }>;
   valorTotal: number;
   status: 'aberto' | 'parcial' | 'pago' | 'vencido';
+  descricao?: string;
 }
 
 export interface ContaPagar {
@@ -322,13 +354,17 @@ export interface ContaPagar {
   }>;
   valorTotal: number;
   status: 'aberto' | 'parcial' | 'pago' | 'vencido';
+  descricao?: string;
 }
 
 // ===================== FILTROS =====================
 
+export type StatusEstoqueFiltro = 'abaixo' | 'normal' | 'zerado';
+
 export interface FiltroEstoque {
   depositoIds: string[];
-  statusEstoque: 'abaixo' | 'normal' | 'zerado' | 'todos';
+  // Seleção múltipla de status. Vazio = todos.
+  statusEstoque: StatusEstoqueFiltro[];
   textoBusca: string;
 }
 

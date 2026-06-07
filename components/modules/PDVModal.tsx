@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth, useCollection, useAddDocument, useDebounce } from '@/lib/hooks';
-import { Produto, Cliente, EstoqueItem, Fornecedor, CondicaoPagamentoConfig } from '@/types';
+import { Produto, Cliente, EstoqueItem, Fornecedor, CondicaoPagamentoConfig, Especificador } from '@/types';
 import { LOCALIZACOES_DISPONIVEIS } from '@/types';
 import {
   ItemCarrinho,
@@ -34,8 +34,11 @@ export function PDVModal({ isOpen, onClose, onSaved }: PDVModalProps) {
   const { data: clientes } = useCollection<Cliente>('clientes');
   const { data: estoque } = useCollection<EstoqueItem>('estoque');
   const { data: fornecedores } = useCollection<Fornecedor>('fornecedores');
+  const { data: especificadores } = useCollection<Especificador>('especificadores');
   const { add: addAtendimento } = useAddDocument('atendimentos');
   const { add: addCliente } = useAddDocument('clientes');
+  const { add: addContaPagar } = useAddDocument('contas_pagar');
+  const { add: addContaReceber } = useAddDocument('contas_receber');
 
   // Disponibilidade por produto
   const disponibilidade = useMemo(() => {
@@ -51,6 +54,7 @@ export function PDVModal({ isOpen, onClose, onSaved }: PDVModalProps) {
   // State
   const [carrinho, setCarrinho] = useState<ItemCarrinho[]>([]);
   const [clienteId, setClienteId] = useState('');
+  const [especificadorId, setEspecificadorId] = useState('');
   const [isClienteModalOpen, setIsClienteModalOpen] = useState(false);
   const [novoClienteData, setNovoClienteData] = useState({
     nome: '',
@@ -85,6 +89,7 @@ export function PDVModal({ isOpen, onClose, onSaved }: PDVModalProps) {
     if (isOpen) {
       setCarrinho([]);
       setClienteId('');
+      setEspecificadorId('');
       setDescontoPercentual(0);
       setPontuacaoPadraoEditavel(2.0);
       setEntradaManual(undefined);
@@ -130,10 +135,22 @@ export function PDVModal({ isOpen, onClose, onSaved }: PDVModalProps) {
     if (isOpen) loadConfig();
   }, [userProfile, isOpen]);
 
+  // Especificador selecionado (comissão capturada do cadastro).
+  const especificador = useMemo(
+    () => especificadores.find((e) => e.id === especificadorId),
+    [especificadores, especificadorId]
+  );
+
   // ===================== CÁLCULO (motor) =====================
   const resumo = useMemo(
-    () => resumirCarrinho(carrinho, pontuacaoPadraoDebounced, descontoPercentualDebounced),
-    [carrinho, pontuacaoPadraoDebounced, descontoPercentualDebounced]
+    () =>
+      resumirCarrinho(
+        carrinho,
+        pontuacaoPadraoDebounced,
+        descontoPercentualDebounced,
+        especificador?.comissao ?? 0
+      ),
+    [carrinho, pontuacaoPadraoDebounced, descontoPercentualDebounced, especificador]
   );
 
   const condicaoSelecionada = useMemo(
@@ -237,6 +254,14 @@ export function PDVModal({ isOpen, onClose, onSaved }: PDVModalProps) {
         clienteNome: clienteSelecionado?.nome || '',
         clienteTelefone: clienteSelecionado?.telefoneWhatsapp || '',
         vendedorId: userProfile?.uid,
+        ...(especificador
+          ? {
+              especificadorId: especificador.id,
+              especificadorNome: especificador.nome,
+              especificadorComissao: resumo.comissaoPercentual,
+              especificadorComissaoValor: resumo.comissaoValor,
+            }
+          : {}),
         itens: carrinho.map((item) => {
           const cmv = calcularCMV(item.produto);
           const precoVistaUnit = item.precoAplicado;
@@ -328,6 +353,46 @@ export function PDVModal({ isOpen, onClose, onSaved }: PDVModalProps) {
           const numeros = await dispararPedidosEncomenda(encomendas, atendimentoId, ctx);
           mensagemExtra = `\n\nPedido(s) de compra gerado(s): ${numeros.join(', ')}.`;
         }
+
+        // Conta a receber: parcelas da venda (entrada hoje + demais vencimentos).
+        const parcelasReceber = [
+          ...(plano.entrada > 0
+            ? [{ numero: 0, valor: plano.entrada, vencimento: new Date(), pago: false }]
+            : []),
+          ...plano.parcelas.map((p) => ({
+            numero: p.numero,
+            valor: parcelasEditaveis[p.numero]?.valor ?? p.valor,
+            vencimento: parcelasEditaveis[p.numero]?.vencimento ?? p.vencimento,
+            pago: false,
+          })),
+        ];
+        await addContaReceber({
+          referenciaId: atendimentoId,
+          parcelas: parcelasReceber,
+          valorTotal: plano.proposta,
+          status: 'aberto',
+          descricao: `Venda ${condicaoSelecionada.nome} - ${clienteSelecionado?.nome || ''}`.trim(),
+          criadoEm: new Date(),
+          atualizadoEm: new Date(),
+        });
+
+        // Conta a pagar: comissão do especificador (vencimento em 30 dias).
+        if (especificador && resumo.comissaoValor > 0) {
+          const vencComissao = new Date();
+          vencComissao.setDate(vencComissao.getDate() + 30);
+          await addContaPagar({
+            referenciaId: atendimentoId,
+            parcelas: [
+              { numero: 1, valor: resumo.comissaoValor, vencimento: vencComissao, pago: false },
+            ],
+            valorTotal: resumo.comissaoValor,
+            status: 'aberto',
+            descricao: `Comissão (${resumo.comissaoPercentual.toFixed(1)}%) - ${especificador.nome}`,
+            criadoEm: new Date(),
+            atualizadoEm: new Date(),
+          });
+          mensagemExtra += `\n\nComissão de R$ ${fmt(resumo.comissaoValor)} lançada em Contas a Pagar para ${especificador.nome}.`;
+        }
       }
 
       alert(`${tipo === 'orcamento' ? 'Orçamento salvo' : 'Venda concluída'} com sucesso!${mensagemExtra}`);
@@ -418,6 +483,29 @@ export function PDVModal({ isOpen, onClose, onSaved }: PDVModalProps) {
                   +
                 </button>
               </div>
+
+              {/* Especificador (indicador com comissão) */}
+              {!apresentacao && (
+                <div className="mt-3">
+                  <label className="block text-xs uppercase tracking-wide text-muted-foreground mb-1.5">
+                    Especificador (indicação)
+                  </label>
+                  <select
+                    value={especificadorId}
+                    onChange={(e) => setEspecificadorId(e.target.value)}
+                    className="w-full px-3 py-2 bg-card border border-border rounded-md text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-mali-primary"
+                  >
+                    <option value="">Sem especificador</option>
+                    {especificadores
+                      .filter((e) => e.ativo)
+                      .map((e) => (
+                        <option key={e.id} value={e.id}>
+                          {e.nome} — {(e.comissao ?? 0).toFixed(1)}%
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              )}
             </div>
 
             {/* Busca */}
@@ -448,6 +536,7 @@ export function PDVModal({ isOpen, onClose, onSaved }: PDVModalProps) {
               plano={plano}
               validacao={validacao}
               apresentacao={apresentacao}
+              especificadorNome={especificador?.nome}
             />
           </div>
 

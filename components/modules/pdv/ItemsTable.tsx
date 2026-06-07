@@ -52,8 +52,10 @@ export function ItemsTable({
                 <tr className="border-b border-border">
                   <th className="text-left px-3 py-2 font-medium">Produto</th>
                   <th className="text-center px-2 py-2 font-medium">Qtd</th>
-                  {!apresentacao && <th className="text-right px-2 py-2 font-medium">V. Unit.</th>}
-                  <th className="text-right px-2 py-2 font-medium">V. Total</th>
+                  {!apresentacao && <th className="text-right px-2 py-2 font-medium">Un. Vista</th>}
+                  {!apresentacao && <th className="text-right px-2 py-2 font-medium">Vista</th>}
+                  <th className="text-right px-2 py-2 font-medium">Un. Final</th>
+                  <th className="text-right px-2 py-2 font-medium">Total Final</th>
                   {!apresentacao && <th className="text-right px-2 py-2 font-medium">Pont.</th>}
                   <th className="px-2 py-2"></th>
                 </tr>
@@ -65,6 +67,10 @@ export function ItemsTable({
                   const semEstoque = disp < item.quantidade;
                   const modalidade = item.modalidade ?? (semEstoque ? 'encomenda' : 'estoque');
                   const unit = r ? r.precoVistaTotal / item.quantidade : 0;
+                  // Valor final (com juros da condição), rateado proporcionalmente.
+                  const fatorFinal = vistaLiquido > 0 ? proposta / vistaLiquido : 1;
+                  const totalFinal = (r?.precoVistaTotal || 0) * fatorFinal;
+                  const unitFinal = item.quantidade > 0 ? totalFinal / item.quantidade : 0;
                   return (
                     <tr key={item.produtoId} className="border-b border-border/60 align-top">
                       <td className="px-3 py-2">
@@ -122,12 +128,20 @@ export function ItemsTable({
                         </div>
                       </td>
                       {!apresentacao && (
-                        <td className="px-2 py-2 text-right text-foreground whitespace-nowrap">
+                        <td className="px-2 py-2 text-right text-muted-foreground whitespace-nowrap">
                           R$ {fmt(unit)}
                         </td>
                       )}
-                      <td className="px-2 py-2 text-right font-semibold text-foreground whitespace-nowrap">
-                        R$ {fmt(r?.precoVistaTotal || 0)}
+                      {!apresentacao && (
+                        <td className="px-2 py-2 text-right text-muted-foreground whitespace-nowrap">
+                          R$ {fmt(r?.precoVistaTotal || 0)}
+                        </td>
+                      )}
+                      <td className="px-2 py-2 text-right text-foreground whitespace-nowrap">
+                        R$ {fmt(unitFinal)}
+                      </td>
+                      <td className="px-2 py-2 text-right font-semibold text-mali-primary whitespace-nowrap">
+                        R$ {fmt(totalFinal)}
                       </td>
                       {!apresentacao && (
                         <td
@@ -150,12 +164,14 @@ export function ItemsTable({
             </table>
           </div>
 
-          {/* Rodapé fixo: à vista + total com condição */}
+          {/* Rodapé fixo: à vista (oculto em apresentação) + total com condição */}
           <div className="flex-shrink-0 border-t border-border px-4 py-2.5 space-y-1 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Soma à vista (c/ desconto)</span>
-              <span className="font-semibold text-foreground">R$ {fmt(vistaLiquido)}</span>
-            </div>
+            {!apresentacao && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Soma à vista (c/ desconto)</span>
+                <span className="font-semibold text-foreground">R$ {fmt(vistaLiquido)}</span>
+              </div>
+            )}
             <div className="flex justify-between">
               <span className="text-muted-foreground">Total ({condicaoNome})</span>
               <span className="font-bold text-mali-primary">R$ {fmt(proposta)}</span>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Deposito, FiltroEstoque } from '@/types';
+import { Deposito, FiltroEstoque, StatusEstoqueFiltro } from '@/types';
 import { Search, Filter, X, ChevronDown } from 'lucide-react';
 
 interface FiltrosEstoqueProps {
@@ -10,15 +10,18 @@ interface FiltrosEstoqueProps {
   depositos: (Deposito & { id: string })[];
 }
 
-const STATUS_OPCOES: Array<{ valor: FiltroEstoque['statusEstoque']; label: string; cor: string }> = [
+const STATUS_OPCOES: Array<{ valor: StatusEstoqueFiltro; label: string; cor: string }> = [
   { valor: 'abaixo', label: 'Abaixo do mínimo', cor: 'text-amber-600' },
   { valor: 'normal', label: 'Normal', cor: 'text-emerald-600' },
   { valor: 'zerado', label: 'Zerado', cor: 'text-red-600' },
 ];
 
+// Status selecionados por padrão (abaixo do mínimo + normal).
+export const STATUS_PADRAO: StatusEstoqueFiltro[] = ['abaixo', 'normal'];
+
 /**
  * Filtros da página de Estoque: busca por texto, seleção de depósitos
- * (checkboxes) e status do estoque (checkboxes).
+ * (checkboxes) e status do estoque (checkboxes — seleção múltipla).
  */
 export function FiltrosEstoque({ filtros, onChange, depositos }: FiltrosEstoqueProps) {
   const [aberto, setAberto] = useState(false);
@@ -30,19 +33,22 @@ export function FiltrosEstoque({ filtros, onChange, depositos }: FiltrosEstoqueP
     onChange({ ...filtros, depositoIds: novos });
   };
 
-  const setStatus = (status: FiltroEstoque['statusEstoque']) => {
-    // Alternar: se já está selecionado, volta para 'todos'
-    onChange({ ...filtros, statusEstoque: filtros.statusEstoque === status ? 'todos' : status });
+  const toggleStatus = (status: StatusEstoqueFiltro) => {
+    const novos = filtros.statusEstoque.includes(status)
+      ? filtros.statusEstoque.filter((s) => s !== status)
+      : [...filtros.statusEstoque, status];
+    onChange({ ...filtros, statusEstoque: novos });
   };
 
   const limpar = () => {
-    onChange({ depositoIds: [], statusEstoque: 'todos', textoBusca: '' });
+    onChange({ depositoIds: [], statusEstoque: [...STATUS_PADRAO], textoBusca: '' });
   };
 
   const temFiltrosAtivos =
     filtros.depositoIds.length > 0 ||
-    filtros.statusEstoque !== 'todos' ||
-    filtros.textoBusca.length > 0;
+    filtros.textoBusca.length > 0 ||
+    filtros.statusEstoque.length !== STATUS_PADRAO.length ||
+    !STATUS_PADRAO.every((s) => filtros.statusEstoque.includes(s));
 
   return (
     <div className="space-y-3">
@@ -72,7 +78,7 @@ export function FiltrosEstoque({ filtros, onChange, depositos }: FiltrosEstoqueP
           Filtros
           {temFiltrosAtivos && (
             <span className="bg-mali-primary text-mali-secondary text-xs rounded-full w-5 h-5 flex items-center justify-center">
-              {filtros.depositoIds.length + (filtros.statusEstoque !== 'todos' ? 1 : 0)}
+              {filtros.depositoIds.length + filtros.statusEstoque.length}
             </span>
           )}
           <ChevronDown className={`w-4 h-4 transition-transform ${aberto ? 'rotate-180' : ''}`} />
@@ -103,8 +109,8 @@ export function FiltrosEstoque({ filtros, onChange, depositos }: FiltrosEstoqueP
                 >
                   <input
                     type="checkbox"
-                    checked={filtros.statusEstoque === opcao.valor}
-                    onChange={() => setStatus(opcao.valor)}
+                    checked={filtros.statusEstoque.includes(opcao.valor)}
+                    onChange={() => toggleStatus(opcao.valor)}
                     className="w-4 h-4 accent-mali-primary"
                   />
                   <span className={opcao.cor}>{opcao.label}</span>

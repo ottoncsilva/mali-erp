@@ -11,6 +11,7 @@ interface VersaoGerencialProps {
   plano: ResultadoCondicao;
   validacao: { valido: boolean; motivo?: string };
   apresentacao: boolean;
+  especificadorNome?: string;
 }
 
 /**
@@ -22,6 +23,7 @@ export function VersaoGerencial({
   plano,
   validacao,
   apresentacao,
+  especificadorNome,
 }: VersaoGerencialProps) {
   if (apresentacao) return null;
 
@@ -53,6 +55,21 @@ export function VersaoGerencial({
           </p>
         </div>
       </div>
+
+      {resumo.comissaoPercentual > 0 && (
+        <div className="grid grid-cols-2 gap-4 pt-3 border-t border-white/15">
+          <div>
+            <p className="text-xs text-white/60 mb-1">
+              Comissão{especificadorNome ? ` — ${especificadorNome}` : ''} ({resumo.comissaoPercentual.toFixed(1)}%)
+            </p>
+            <p className="text-lg font-semibold text-orange-300">R$ {fmt(resumo.comissaoValor)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-white/60 mb-1">Loja retém (à vista)</p>
+            <p className="text-lg font-semibold text-blue-300">R$ {fmt(resumo.vistaBaseLiquido)}</p>
+          </div>
+        </div>
+      )}
 
       {!validacao.valido && (
         <div className="flex gap-2 p-3 bg-red-500/20 rounded border border-red-500/30">

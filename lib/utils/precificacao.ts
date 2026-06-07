@@ -1,15 +1,18 @@
 // Motor de precificação e pontuação (fonte única de cálculo).
 //
 // Fluxo, por item:
-//   1. CMV unitário      = custo + icms + ipi + frete
-//   2. Preço à vista     = CMV × pontuação (especial do produto OU padrão da loja)
-//   3. Subtotal à vista  = Σ (preço à vista × qtd)
-//   4. Desconto global % aplicado sobre o preço à vista  →  VISTA líquido
-//   5. Fator da condição = converte VISTA → PROPOSTA (Tabela Price)
-//   6. PROPOSTA          = VISTA líquido × fator
-//   7. Parcelas          = proposta distribuída (com entrada editável)
+//   1. CMV unitário        = custo + icms + ipi + frete
+//   2. Preço à vista base   = CMV × pontuação (especial do produto OU padrão da loja)
+//   3. Subtotal à vista     = Σ (preço à vista base × qtd)
+//   4. Desconto global %     aplicado sobre o preço à vista  →  VISTA base líquido
+//   5. Comissão do especificador: VISTA com comissão = VISTA base ÷ (1 − comissão%)
+//      (assim, depois de pagar a comissão, a loja retém o VISTA base).
+//   6. Fator da condição     = converte VISTA → PROPOSTA (Tabela Price)
+//   7. PROPOSTA              = entrada (à vista, sem juros) + saldo financiado × fator
+//   8. Parcelas              = proposta distribuída (com entrada editável)
 //
-// Pontuação = Preço à vista ÷ CMV (markup; ex.: 2.0 = preço dobro do custo).
+// Pontuação = Preço à vista base ÷ CMV (markup da LOJA; a comissão é repassada
+// ao especificador e não altera a pontuação da loja).
 
 import { Produto, CondicaoPagamentoConfig } from '@/types';
 
@@ -56,33 +59,45 @@ export interface ItemResumo {
   nome: string;
   qtd: number;
   cmvUnitario: number;
-  precoVistaUnitario: number; // de tabela (CMV × pontuação)
-  precoVistaTotal: number; // unitário × qtd, já com desconto global aplicado
-  pontuacao: number; // preço (com desconto) ÷ CMV
+  precoVistaUnitario: number; // de tabela (CMV × pontuação), antes do desconto
+  precoVistaTotal: number; // unitário × qtd, com desconto + comissão (à vista final)
+  pontuacao: number; // preço base (com desconto) ÷ CMV — markup da loja
 }
 
 export interface ResumoCarrinho {
-  subtotalVista: number; // soma à vista SEM desconto
+  subtotalVista: number; // soma à vista SEM desconto (base de tabela)
   descontoPercentual: number; // 0..100
-  valorDescontos: number; // subtotal − vistaLiquido
-  vistaLiquido: number; // total à vista COM desconto
+  valorDescontos: number; // subtotal − vistaBaseLiquido
+  vistaBaseLiquido: number; // total à vista COM desconto, SEM comissão (loja retém)
+  comissaoPercentual: number; // 0..100
+  comissaoValor: number; // R$ adicionado para cobrir a comissão
+  vistaLiquido: number; // total à vista COM desconto E comissão (cliente paga à vista)
   cmvTotal: number;
-  pontuacaoMedia: number; // vistaLiquido ÷ cmvTotal
+  pontuacaoMedia: number; // vistaBaseLiquido ÷ cmvTotal (markup da loja)
   itens: ItemResumo[];
+}
+
+/** Fator de comissão: 1 / (1 − c%). Garante que a loja retenha o valor base. */
+export function fatorComissao(comissaoPercentual: number): number {
+  const c = Math.max(0, Math.min(99.9, comissaoPercentual || 0)) / 100;
+  return 1 / (1 - c);
 }
 
 /**
  * Resume o carrinho à vista, aplicando o desconto global percentual
- * proporcionalmente a todos os itens (sobre o preço de tabela).
+ * proporcionalmente a todos os itens (sobre o preço de tabela) e, em seguida,
+ * o markup da comissão do especificador.
  */
 export function resumirCarrinho(
   itens: ItemCarrinho[],
   pontuacaoPadrao: number,
-  descontoPercentual: number = 0
+  descontoPercentual: number = 0,
+  comissaoPercentual: number = 0
 ): ResumoCarrinho {
   const fatorDesc = 1 - (descontoPercentual || 0) / 100;
+  const fatorCom = fatorComissao(comissaoPercentual);
   let subtotalVista = 0;
-  let vistaLiquido = 0;
+  let vistaBaseLiquido = 0;
   let cmvTotal = 0;
   const itensResumo: ItemResumo[] = [];
 
@@ -90,11 +105,11 @@ export function resumirCarrinho(
     const cmv = calcularCMV(item.produto);
     const precoVistaUnit = item.precoAplicado; // já é CMV × pontuação ao adicionar
     const totalTabela = precoVistaUnit * item.quantidade;
-    const totalLiquido = totalTabela * fatorDesc;
+    const totalBaseLiquido = totalTabela * fatorDesc;
     const cmvItem = cmv * item.quantidade;
 
     subtotalVista += totalTabela;
-    vistaLiquido += totalLiquido;
+    vistaBaseLiquido += totalBaseLiquido;
     cmvTotal += cmvItem;
 
     itensResumo.push({
@@ -103,18 +118,24 @@ export function resumirCarrinho(
       qtd: item.quantidade,
       cmvUnitario: cmv,
       precoVistaUnitario: precoVistaUnit,
-      precoVistaTotal: totalLiquido,
+      // valor à vista final (com comissão) para que a soma das linhas bata com o total
+      precoVistaTotal: totalBaseLiquido * fatorCom,
       pontuacao: calcularPontuacaoReal(precoVistaUnit * fatorDesc, cmv),
     });
   });
 
+  const vistaLiquido = vistaBaseLiquido * fatorCom;
+
   return {
     subtotalVista,
     descontoPercentual: descontoPercentual || 0,
-    valorDescontos: subtotalVista - vistaLiquido,
+    valorDescontos: subtotalVista - vistaBaseLiquido,
+    vistaBaseLiquido,
+    comissaoPercentual: comissaoPercentual || 0,
+    comissaoValor: vistaLiquido - vistaBaseLiquido,
     vistaLiquido,
     cmvTotal,
-    pontuacaoMedia: cmvTotal > 0 ? vistaLiquido / cmvTotal : 0,
+    pontuacaoMedia: cmvTotal > 0 ? vistaBaseLiquido / cmvTotal : 0,
     itens: itensResumo,
   };
 }
@@ -171,10 +192,11 @@ export interface ResultadoCondicao {
  * Gera o plano de pagamento de uma condição a partir do valor à vista líquido.
  *
  * - À vista: 1 pagamento hoje, sem juros.
- * - Parcelado Nx: N parcelas iguais (proposta ÷ N), a partir de +1 mês.
- * - Entrada + Nx: entrada hoje (default = proposta ÷ (N+1)) + N parcelas iguais
- *   com o restante. A entrada é editável (`entradaManual`) e redistribui o
- *   restante igualmente entre as N parcelas.
+ * - Parcelado Nx: juros sobre todo o valor; N parcelas iguais a partir de +1 mês.
+ * - Entrada + Nx: a ENTRADA é paga hoje à vista (SEM juros). Apenas o saldo
+ *   (vistaLiquido − entrada) é financiado com juros (Tabela Price) em N parcelas.
+ *   Alterar a entrada reduz o saldo financiado e, portanto, o total da proposta.
+ *   A entrada é editável (`entradaManual`, em valor à vista).
  */
 export function gerarPlanoPagamento(
   vistaLiquido: number,
@@ -183,47 +205,65 @@ export function gerarPlanoPagamento(
   opts: { entradaManual?: number; dataBase?: Date } = {}
 ): ResultadoCondicao {
   const dataBase = opts.dataBase ?? new Date();
+  const n = condicao.parcelas;
+  const temEntrada = condicao.tipo === 'entrada_parcelado' || condicao.temEntrada;
+
+  // À vista: paga hoje, sem juros.
+  if (condicao.tipo === 'avista' || n <= 0) {
+    return {
+      condicaoId: condicao.id,
+      condicaoNome: condicao.nome,
+      tipo: condicao.tipo,
+      vistaLiquido,
+      proposta: vistaLiquido,
+      juros: 0,
+      entrada: 0,
+      parcelas: [{ numero: 1, valor: vistaLiquido, vencimento: dataBase }],
+    };
+  }
+
+  // Entrada + Nx: entrada à vista (sem juros) + saldo financiado com juros.
+  if (temEntrada) {
+    const entradaPadrao = vistaLiquido / (n + 1); // valor à vista
+    let entrada = opts.entradaManual ?? entradaPadrao;
+    entrada = Math.max(0, Math.min(entrada, vistaLiquido));
+    const baseFinanciada = vistaLiquido - entrada; // à vista, sem juros
+    const totalParcelado = baseFinanciada * coefPrice(taxaMensal, n) * n; // com juros
+    const proposta = entrada + totalParcelado;
+    const valorParcela = totalParcelado / n;
+    const parcelas: PlanoParcela[] = [];
+    for (let i = 1; i <= n; i++) {
+      parcelas.push({ numero: i, valor: valorParcela, vencimento: addMeses(dataBase, i) });
+    }
+    return {
+      condicaoId: condicao.id,
+      condicaoNome: condicao.nome,
+      tipo: condicao.tipo,
+      vistaLiquido,
+      proposta,
+      juros: proposta - vistaLiquido,
+      entrada,
+      parcelas,
+    };
+  }
+
+  // Parcelado Nx (sem entrada): juros sobre todo o valor.
   const proposta = vistaLiquido * fatorCondicao(condicao, taxaMensal);
-  const base = {
+  const valorParcela = proposta / n;
+  const parcelas: PlanoParcela[] = [];
+  for (let i = 1; i <= n; i++) {
+    parcelas.push({ numero: i, valor: valorParcela, vencimento: addMeses(dataBase, i) });
+  }
+  return {
     condicaoId: condicao.id,
     condicaoNome: condicao.nome,
     tipo: condicao.tipo,
     vistaLiquido,
     proposta,
     juros: proposta - vistaLiquido,
+    entrada: 0,
+    parcelas,
   };
-
-  // À vista: paga hoje.
-  if (condicao.tipo === 'avista' || condicao.parcelas <= 0) {
-    return {
-      ...base,
-      entrada: 0,
-      parcelas: [{ numero: 1, valor: proposta, vencimento: dataBase }],
-    };
-  }
-
-  const n = condicao.parcelas;
-
-  // Entrada + Nx: entrada hoje + N parcelas mensais.
-  if (condicao.tipo === 'entrada_parcelado' || condicao.temEntrada) {
-    const entradaPadrao = proposta / (n + 1);
-    let entrada = opts.entradaManual ?? entradaPadrao;
-    entrada = Math.max(0, Math.min(entrada, proposta)); // limita entre 0 e proposta
-    const valorParcela = (proposta - entrada) / n;
-    const parcelas: PlanoParcela[] = [];
-    for (let i = 1; i <= n; i++) {
-      parcelas.push({ numero: i, valor: valorParcela, vencimento: addMeses(dataBase, i) });
-    }
-    return { ...base, entrada, parcelas };
-  }
-
-  // Parcelado Nx (sem entrada): N parcelas iguais a partir de +1 mês.
-  const valorParcela = proposta / n;
-  const parcelas: PlanoParcela[] = [];
-  for (let i = 1; i <= n; i++) {
-    parcelas.push({ numero: i, valor: valorParcela, vencimento: addMeses(dataBase, i) });
-  }
-  return { ...base, entrada: 0, parcelas };
 }
 
 // ===================== TRAVAS DE NEGOCIAÇÃO =====================
