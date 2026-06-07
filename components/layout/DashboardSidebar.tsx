@@ -88,6 +88,12 @@ const navItems: NavItem[] = [
         icon: <Briefcase className="w-4 h-4" />,
         requiredProfiles: ['admin', 'gerencia', 'vendedor'],
       },
+      {
+        label: 'Especificadores',
+        href: '/dashboard/vendas/especificadores',
+        icon: <Users className="w-4 h-4" />,
+        requiredProfiles: ['admin', 'gerencia', 'vendedor'],
+      },
     ],
   },
 

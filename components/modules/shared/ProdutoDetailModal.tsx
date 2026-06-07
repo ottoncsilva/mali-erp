@@ -18,6 +18,8 @@ import {
   LocalizacaoEstoque,
 } from '@/types';
 import { formatBRL, formatData } from '@/lib/utils/format';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase/config';
 import {
   X,
   Upload,
@@ -64,6 +66,7 @@ export function ProdutoDetailModal({
   const { update: updateProduto, loading: salvando } = useUpdateDocument('produtos');
   const { uploadFile } = useStorageUpload();
 
+  const [pontuacaoPadrao, setPontuacaoPadrao] = useState(2.0);
   const [aba, setAba] = useState<Aba>('info');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingFoto, setUploadingFoto] = useState(false);
@@ -118,7 +121,24 @@ export function ProdutoDetailModal({
     if (isOpen) setAba('info');
   }, [isOpen]);
 
+  // Carrega a pontuação padrão da loja (para calcular o preço à vista de tabela).
+  useEffect(() => {
+    if (!isOpen) return;
+    (async () => {
+      try {
+        const snap = await getDoc(doc(db, 'empresa', 'config'));
+        if (snap.exists()) setPontuacaoPadrao(snap.data().pontuacaoPadrao || 2.0);
+      } catch (err) {
+        console.error('Erro ao carregar pontuação padrão:', err);
+      }
+    })();
+  }, [isOpen]);
+
   const cmv = form.custoProduto + form.icms + form.ipi + form.frete;
+  // Pontuação aplicável e preço à vista de tabela.
+  const pontuacaoAplicada =
+    form.tipoPontuacao === 'especial' ? form.pontuacaoEspecial || pontuacaoPadrao : pontuacaoPadrao;
+  const precoVista = cmv * pontuacaoAplicada;
 
   // Estoque deste produto, agrupado por localização
   const saldosPorLocal = useMemo(() => {
@@ -462,6 +482,18 @@ export function ProdutoDetailModal({
                     />
                   </div>
                 )}
+              </div>
+
+              {/* Preço à Vista calculado (CMV × pontuação aplicada) */}
+              <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-md flex items-center justify-between">
+                <div>
+                  <span className="text-sm font-medium text-foreground">Preço à Vista (Tabela)</span>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    CMV {formatBRL(cmv)} × pontuação {pontuacaoAplicada.toFixed(2)}
+                    {form.tipoPontuacao === 'padrao' ? ' (padrão da loja)' : ' (especial)'}
+                  </p>
+                </div>
+                <span className="text-lg font-bold text-emerald-600">{formatBRL(precoVista)}</span>
               </div>
 
               {/* Histórico de Compras */}
