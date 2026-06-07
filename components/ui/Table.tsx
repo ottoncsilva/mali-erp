@@ -5,9 +5,11 @@ interface TableProps {
   data: any[];
   loading?: boolean;
   emptyMessage?: string;
+  // Permite que conteúdo (ex.: popovers em hover) "escape" das bordas da tabela.
+  allowOverflow?: boolean;
 }
 
-export function Table({ columns, data, loading, emptyMessage = 'Nenhum registro encontrado' }: TableProps) {
+export function Table({ columns, data, loading, emptyMessage = 'Nenhum registro encontrado', allowOverflow }: TableProps) {
   if (loading) {
     return <div className="text-center py-8 text-muted-foreground">Carregando...</div>;
   }
@@ -17,7 +19,7 @@ export function Table({ columns, data, loading, emptyMessage = 'Nenhum registro 
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-border">
+    <div className={`${allowOverflow ? 'overflow-visible' : 'overflow-x-auto'} rounded-lg border border-border`}>
       <table className="w-full text-sm">
         <thead className="bg-card border-b border-border">
           <tr>
