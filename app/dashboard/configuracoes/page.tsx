@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Settings, Tags, Layers, DollarSign, Users, Package } from 'lucide-react';
+import { Settings, Tags, DollarSign, Users, Package } from 'lucide-react';
 
 const configItems = [
   {
@@ -17,13 +17,6 @@ const configItems = [
     icon: <Tags className="w-6 h-6" />,
     href: '/dashboard/configuracoes/categorias',
     color: 'from-blue-500 to-blue-600',
-  },
-  {
-    title: 'Variáveis de Acabamento',
-    description: 'Tecidos, cores de madeira, lateralidades',
-    icon: <Layers className="w-6 h-6" />,
-    href: '/dashboard/configuracoes/acabamentos',
-    color: 'from-purple-500 to-purple-600',
   },
   {
     title: 'Usuários',

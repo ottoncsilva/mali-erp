@@ -34,14 +34,6 @@ export interface Categoria {
   subcategorias: string[];
 }
 
-// Variáveis de Acabamento
-export interface VariavelAcabamento {
-  id: string;
-  tipo: 'tecido' | 'cor_madeira' | 'lateralidade' | 'outro';
-  nomeDaOpcao: string;
-  ativo: boolean;
-}
-
 // Fornecedores
 export interface Fornecedor {
   id: string;
@@ -60,7 +52,6 @@ export interface Produto {
   sku: string;
   categoriaId: string;
   fornecedorId: string;
-  acabamentosDisponiveis: string[]; // IDs de VariavelAcabamento
   fotos: string[]; // URLs do Firebase Storage
   fotoPrincipal: string;
   custoProduto: number;
@@ -208,7 +199,6 @@ export interface Cliente {
 // Item do Atendimento
 export interface ItemAtendimento {
   produtoId: string;
-  acabamentoEscolhido: string;
   nome: string;
   foto: string;
   qtd: number;

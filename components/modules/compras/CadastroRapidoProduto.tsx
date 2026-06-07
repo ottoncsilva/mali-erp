@@ -42,7 +42,6 @@ export function CadastroRapidoProduto({ isOpen, onClose, onCriado, fornecedorId 
         sku: sku.trim(),
         categoriaId,
         fornecedorId: fornecedorId || '',
-        acabamentosDisponiveis: [],
         fotos: [],
         fotoPrincipal: '',
         custoProduto,

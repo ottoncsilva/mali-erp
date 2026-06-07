@@ -1,7 +1,7 @@
 'use client';
 
 import { useAuth, useCollection } from '@/lib/hooks';
-import { Atendimento, Produto, Cliente, VariavelAcabamento } from '@/types';
+import { Atendimento, Produto, Cliente } from '@/types';
 import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase/config';
 import { query, where, getDocs, collection } from 'firebase/firestore';
@@ -22,7 +22,6 @@ export default function OrcamentosPage() {
   const { data: atendimentos } = useCollection<Atendimento>('atendimentos');
   const { data: clientes } = useCollection<Cliente>('clientes');
   const { data: produtos } = useCollection<Produto>('produtos');
-  const { data: acabamentos } = useCollection<VariavelAcabamento>('variaveis_acabamento');
 
   const [orcamentos, setOrcamentos] = useState<OrcamentoComDetalhes[]>([]);
   const [filtro, setFiltro] = useState<'todos' | 'pendentes' | 'meus'>('pendentes');
@@ -222,7 +221,6 @@ export default function OrcamentosPage() {
                     <OrcamentoPDF
                       atendimento={selectedOrc}
                       produtos={produtos}
-                      acabamentos={acabamentos}
                       nomeEmpresa={nomeEmpresa}
                     />
                   }

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth, useCollection, useAddDocument } from '@/lib/hooks';
-import { Produto, Cliente, VariavelAcabamento, EstoqueItem, Fornecedor } from '@/types';
+import { Produto, Cliente, EstoqueItem, Fornecedor } from '@/types';
 import { LOCALIZACOES_DISPONIVEIS } from '@/types';
 import { ItemCarrinho } from '@/lib/utils/precificacao';
 import { ProdutoSearch } from '@/components/modules/ProdutoSearch';
@@ -24,7 +24,6 @@ export function PDVModal({ isOpen, onClose, onSaved }: PDVModalProps) {
   const { userProfile } = useAuth();
   const { data: produtos, loading: produtosLoading } = useCollection<Produto>('produtos');
   const { data: clientes } = useCollection<Cliente>('clientes');
-  const { data: acabamentos } = useCollection<VariavelAcabamento>('variaveis_acabamento');
   const { data: estoque } = useCollection<EstoqueItem>('estoque');
   const { data: fornecedores } = useCollection<Fornecedor>('fornecedores');
   const { add: addAtendimento } = useAddDocument('atendimentos');
@@ -91,7 +90,7 @@ export function PDVModal({ isOpen, onClose, onSaved }: PDVModalProps) {
     if (isOpen) loadConfig();
   }, [userProfile, isOpen]);
 
-  const handleAddItem = (produtoId: string, acabamentoId: string, quantidade: number) => {
+  const handleAddItem = (produtoId: string, quantidade: number) => {
     const produto = produtos.find((p) => p.id === produtoId);
     if (!produto) return;
 
@@ -106,7 +105,6 @@ export function PDVModal({ isOpen, onClose, onSaved }: PDVModalProps) {
     const novoItem: ItemCarrinho = {
       produtoId,
       produto,
-      acabamentoEscolhido: acabamentoId,
       quantidade,
       precoAplicado,
       desconto: 0,
@@ -203,7 +201,6 @@ export function PDVModal({ isOpen, onClose, onSaved }: PDVModalProps) {
             item.produto.custoProduto + item.produto.icms + item.produto.ipi + item.produto.frete;
           return {
             produtoId: item.produtoId,
-            acabamentoEscolhido: item.acabamentoEscolhido,
             nome: item.produto.nome,
             foto: item.produto.fotoPrincipal,
             qtd: item.quantidade,
@@ -296,7 +293,6 @@ export function PDVModal({ isOpen, onClose, onSaved }: PDVModalProps) {
         <div className="lg:col-span-1">
           <ProdutoSearch
             produtos={produtos}
-            acabamentos={acabamentos}
             onAddItem={handleAddItem}
             loading={produtosLoading}
           />
@@ -365,7 +361,6 @@ export function PDVModal({ isOpen, onClose, onSaved }: PDVModalProps) {
             onUpdatePreco={() => {}}
             pontuacaoPadrao={pontuacaoPadrao}
             limitePerfil={limitePerfil}
-            acabamentos={acabamentos}
             mostrarModalidade={tipoAtendimento === 'venda'}
             disponibilidade={disponibilidade}
             onUpdateModalidade={handleUpdateModalidade}

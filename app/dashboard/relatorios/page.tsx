@@ -32,13 +32,6 @@ export default function RelatoriosPage() {
     { name: 'Cozinha', value: 12000 },
   ];
 
-  const topTecidos = [
-    { tecido: 'Linho Cinza', quantidade: 35 },
-    { tecido: 'Suede Bege', quantidade: 28 },
-    { tecido: 'Couro Preto', quantidade: 22 },
-    { tecido: 'Linho Branco', quantidade: 18 },
-  ];
-
   const mediasVendedor = [
     { vendedor: 'Carlos Silva', ticket: 2350, conversao: 72 },
     { vendedor: 'Ana Santos', ticket: 2000, conversao: 68 },
@@ -70,7 +63,6 @@ export default function RelatoriosPage() {
           { value: 'vendas', label: '📊 Vendas' },
           { value: 'produtos', label: '📦 Produtos' },
           { value: 'vendedor', label: '👥 Vendedores' },
-          { value: 'tecidos', label: '🎨 Acabamentos' },
         ].map((f) => (
           <button
             key={f.value}
@@ -207,40 +199,6 @@ export default function RelatoriosPage() {
                         Conversão: <span className="font-semibold text-emerald-600">{v.conversao}%</span>
                       </span>
                     </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {filtroTipo === 'tecidos' && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-card rounded-lg border border-border p-6">
-              <h3 className="font-semibold text-foreground mb-4">Acabamentos Mais Solicitados</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={topTecidos}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#3a4b5c" />
-                  <XAxis dataKey="tecido" angle={-45} textAnchor="end" height={100} stroke="#5a6b7c" />
-                  <YAxis stroke="#5a6b7c" />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: '#1a2a3a', border: '1px solid #3a4b5c' }}
-                    labelStyle={{ color: '#d4af37' }}
-                  />
-                  <Bar dataKey="quantidade" fill="#D4AF37" radius={[8, 8, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-
-            <div className="bg-card rounded-lg border border-border p-6">
-              <h3 className="font-semibold text-foreground mb-4">Top Acabamentos</h3>
-              <div className="space-y-2">
-                {topTecidos.map((t, idx) => (
-                  <div key={idx} className="p-3 bg-background rounded flex justify-between items-center">
-                    <span className="text-foreground">{t.tecido}</span>
-                    <span className="font-semibold text-mali-primary">{t.quantidade} unidades</span>
                   </div>
                 ))}
               </div>

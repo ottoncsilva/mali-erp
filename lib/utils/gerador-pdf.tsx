@@ -1,11 +1,10 @@
 import React from 'react';
 import { Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/renderer';
-import { Atendimento, Produto, VariavelAcabamento } from '@/types';
+import { Atendimento, Produto } from '@/types';
 
 interface GeradoPDFProps {
   atendimento: Atendimento & { id: string };
   produtos: (Produto & { id: string })[];
-  acabamentos: (VariavelAcabamento & { id: string })[];
   nomeEmpresa: string;
   logoURL?: string;
 }
@@ -172,14 +171,9 @@ const styles = StyleSheet.create({
   },
 });
 
-const getNomeAcabamento = (id: string, acabamentos: (VariavelAcabamento & { id: string })[]) => {
-  return acabamentos.find((a) => a.id === id)?.nomeDaOpcao || 'N/A';
-};
-
 export function OrcamentoPDF({
   atendimento,
   produtos,
-  acabamentos,
   nomeEmpresa,
   logoURL,
 }: GeradoPDFProps) {
@@ -243,9 +237,6 @@ export function OrcamentoPDF({
               </View>
               <View style={[styles.tableCell, styles.nameCol]}>
                 <Text style={{ fontWeight: 'bold', marginBottom: 2 }}>{item.nome}</Text>
-                <Text style={{ fontSize: 8, color: '#999' }}>
-                  {getNomeAcabamento(item.acabamentoEscolhido, acabamentos)}
-                </Text>
               </View>
               <View style={[styles.tableCell, styles.qtdCol]}>
                 <Text>{item.qtd}</Text>
