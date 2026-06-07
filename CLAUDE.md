@@ -212,6 +212,51 @@ Pontuação Real = CMV / Preço Aplicado
 - O PDV **não é mais uma página separada** — virou um modal (`components/modules/PDVModal.tsx`)
   acionado pelo botão "Adicionar Novo Orçamento" em `/dashboard/orcamentos`.
 
+## 📦 Módulos de Estoque & Compras
+
+### Menu
+- **Vendas** (CRM + Vendas unificados): Clientes, Orçamentos, Carteira.
+- **Catálogo**: Produtos, **Estoque**, **Compras**, Categorias, Fornecedores.
+
+### Localizações de Estoque
+Cada produto tem saldo por localização física (`lib/estoque`, tipo `LocalizacaoEstoque`):
+- `comprado` — comprado / em trânsito (não disponível para venda)
+- `showroom` — exposição (disponível)
+- `deposito` — depósito (disponível)
+- `entrega` — em entrega (reservado)
+
+Disponível para venda = `showroom + deposito`.
+
+### Coleções Firestore (novas)
+- `estoque` — saldo por localização. Id composto: `${produtoId}_${localizacao}`.
+- `movimentacoes_estoque` — trilha de auditoria imutável (entrada/saída/ajuste/transferência).
+- `pedidos_compra` — pedidos de compra (numeração `PC-ano-NNNN`).
+- `notas_fiscais` — notas fiscais de entrada com rateio de frete e CMV por item.
+- `contadores` — numeração sequencial atômica de PC/NF.
+
+### Lógica central (`lib/estoque/`)
+- `calculos.ts` — `ratearFreteECalcularCMV` (rateio proporcional do frete + CMV), `calcularTotaisNota`.
+- `movimentacoes.ts` — `registrarEntrada/Saida/Transferencia/Ajuste` (transações Firestore + denormalização de `estoqueAtual`).
+- `compras.ts` — `registrarNotaFiscal` (entrada de estoque + atualização de CMV do produto + conta a pagar + baixa do pedido).
+- `vendas.ts` — `baixarEstoquePorVenda` (prioriza showroom→depósito) e `dispararPedidosEncomenda` (agrupa por fornecedor).
+- `numeracao.ts` — `proximoNumero('PC' | 'NF')`.
+
+### Fluxo de Venda (PDV)
+Ao **finalizar uma venda**, cada item tem modalidade:
+- **Estoque**: baixa do estoque disponível (showroom→depósito).
+- **Sob encomenda**: gera pedido de compra automaticamente (agrupado por fornecedor),
+  vinculado ao atendimento de origem (`atendimentoOrigemId`).
+
+### Composição de CMV na Nota Fiscal
+```
+subtotalItem = custoUnitário × qtd
+freteRateado = (subtotalItem / subtotalGeral) × freteTotal
+CMV unitário = custoUnitário + (freteRateado + ICMS + IPI) / qtd
+```
+Ao registrar a NF, os componentes de custo do produto (`custoProduto`, `icms`, `ipi`, `frete`)
+são atualizados por unidade, mantendo compatibilidade com `calcularCMV`.
+
 ---
 
-**Última atualização**: 2026-06-07 - Tema light, menu reorganizado, PDV em modal e migração de imagens para MinIO ✅
+**Última atualização**: 2026-06-07 - Módulos de Estoque e Compras, menu Vendas unificado,
+venda com baixa de estoque / pedido sob encomenda, rateio de frete e composição de CMV ✅

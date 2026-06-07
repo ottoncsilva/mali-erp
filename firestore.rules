@@ -65,6 +65,34 @@ service cloud.firestore {
       allow read, write: if isAuth();
     }
 
+    // ESTOQUE & COMPRAS
+    // Saldos de estoque por localização (showroom, depósito, comprado, entrega).
+    match /estoque/{id} {
+      allow read, write: if isAuth();
+    }
+
+    // Trilha de auditoria de movimentações. Criação permitida (client-side via
+    // transação); edição/exclusão bloqueadas para preservar o histórico.
+    match /movimentacoes_estoque/{id} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if false;
+    }
+
+    // Pedidos de compra e notas fiscais de entrada.
+    match /pedidos_compra/{id} {
+      allow read, write: if isAuth();
+    }
+
+    match /notas_fiscais/{id} {
+      allow read, write: if isAuth();
+    }
+
+    // Contadores sequenciais (numeração de PC/NF).
+    match /contadores/{id} {
+      allow read, write: if isAuth();
+    }
+
     // Bloqueio padrão para qualquer outra coleção não listada
     match /{document=**} {
       allow read, write: if false;

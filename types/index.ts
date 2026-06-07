@@ -70,8 +70,125 @@ export interface Produto {
   tipoPontuacao: 'padrao' | 'especial';
   pontuacaoEspecial?: number;
   estoqueMinimo: number;
-  estoqueAtual: number;
+  estoqueAtual: number; // soma de todas as localizações disponíveis (denormalizado)
+  localizacaoPadrao?: LocalizacaoEstoque; // local padrão ao receber compras
   status: 'ativo' | 'inativo' | 'esgotado';
+  criadoEm: Date;
+  atualizadoEm: Date;
+}
+
+// ===================== ESTOQUE & COMPRAS =====================
+
+// Localizações físicas do estoque
+export type LocalizacaoEstoque = 'comprado' | 'showroom' | 'deposito' | 'entrega';
+
+export const LOCALIZACOES: Record<LocalizacaoEstoque, string> = {
+  comprado: 'Comprado / Em Trânsito',
+  showroom: 'Showroom',
+  deposito: 'Depósito',
+  entrega: 'Em Entrega',
+};
+
+// Localizações consideradas disponíveis para venda imediata
+export const LOCALIZACOES_DISPONIVEIS: LocalizacaoEstoque[] = ['showroom', 'deposito'];
+
+// Saldo de estoque de um produto em uma localização específica.
+// Documento com id composto: `${produtoId}_${localizacao}`
+export interface EstoqueItem {
+  id: string;
+  produtoId: string;
+  produtoNome: string; // denormalizado para exibição
+  produtoSku: string; // denormalizado para exibição
+  localizacao: LocalizacaoEstoque;
+  quantidade: number;
+  quantidadeReservada: number; // reservada para vendas/entregas pendentes
+  criadoEm: Date;
+  atualizadoEm: Date;
+}
+
+// Movimentação de estoque (trilha de auditoria — imutável)
+export interface MovimentacaoEstoque {
+  id: string;
+  produtoId: string;
+  produtoNome: string;
+  tipo: 'entrada' | 'saida' | 'ajuste' | 'transferencia';
+  localizacaoOrigem?: LocalizacaoEstoque; // para saida/transferencia
+  localizacaoDestino?: LocalizacaoEstoque; // para entrada/transferencia
+  quantidade: number;
+  referenciaTipo: 'pedido_compra' | 'nota_fiscal' | 'atendimento' | 'ajuste_manual' | 'transferencia';
+  referenciaId?: string;
+  motivo?: string;
+  registradoPorId: string;
+  registradoPorNome?: string;
+  criadoEm: Date;
+}
+
+// Item de um pedido de compra
+export interface ItemPedidoCompra {
+  produtoId: string; // pode ser produto já existente
+  nomeProduto: string; // denormalizado
+  skuProduto: string;
+  quantidade: number;
+  custoUnitario: number; // custo previsto por unidade
+  icms: number; // % ou valor por unidade (alinhar com Produto)
+  ipi: number;
+}
+
+// Pedido de compra
+export interface PedidoCompra {
+  id: string;
+  numero: string; // sequencial legível, ex: PC-2026-0001
+  fornecedorId: string;
+  fornecedorNome: string; // denormalizado
+  itens: ItemPedidoCompra[];
+  freteEstimado: number;
+  totalEstimado: number; // soma dos itens + frete
+  prazoEntregaEstimado?: Date;
+  status: 'pedido' | 'em_transito' | 'recebido' | 'faturado' | 'cancelado';
+  origem: 'manual' | 'encomenda'; // encomenda = disparada por venda sob encomenda
+  atendimentoOrigemId?: string; // se veio de uma venda sob encomenda
+  criadoPorId: string;
+  aprovadoPorId?: string;
+  observacoes?: string;
+  criadoEm: Date;
+  atualizadoEm: Date;
+}
+
+// Item de uma nota fiscal (com rateio de frete e CMV calculado)
+export interface ItemNotaFiscal {
+  produtoId: string;
+  nomeProduto: string;
+  skuProduto: string;
+  quantidade: number;
+  custoUnitario: number; // da nota
+  subtotal: number; // custoUnitario * quantidade
+  icms: number; // valor total de ICMS do item
+  ipi: number; // valor total de IPI do item
+  freteRateado: number; // parcela do frete alocada a este item
+  cmvUnitario: number; // (custo + frete rateado/qtd + icms/qtd + ipi/qtd)
+  cmvTotal: number; // cmvUnitario * quantidade
+}
+
+// Nota fiscal de entrada (compra)
+export interface NotaFiscal {
+  id: string;
+  numero: string; // número da NF-e do fornecedor
+  serie: string;
+  fornecedorId: string;
+  fornecedorNome: string;
+  pedidoCompraId?: string; // vínculo opcional ao pedido
+  dataEmissao: Date;
+  dataEntrada: Date; // quando registrada no sistema
+  itens: ItemNotaFiscal[];
+  freteTotal: number;
+  subtotalProdutos: number;
+  icmsTotal: number;
+  ipiTotal: number;
+  valorTotal: number; // subtotal + frete + ipi (conforme regra fiscal)
+  localizacaoDestino: LocalizacaoEstoque; // para onde entra o estoque (padrão: comprado)
+  status: 'rascunho' | 'registrada' | 'cancelada';
+  registradaPorId: string;
+  observacoes?: string;
   criadoEm: Date;
   atualizadoEm: Date;
 }

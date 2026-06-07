@@ -1,14 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth, useCollection, useAddDocument } from '@/lib/hooks';
-import { Produto, Cliente, VariavelAcabamento } from '@/types';
+import { Produto, Cliente, VariavelAcabamento, EstoqueItem, Fornecedor } from '@/types';
+import { LOCALIZACOES_DISPONIVEIS } from '@/types';
 import { ItemCarrinho } from '@/lib/utils/precificacao';
 import { ProdutoSearch } from '@/components/modules/ProdutoSearch';
 import { CarrinhoSimulador } from '@/components/modules/CarrinhoSimulador';
 import { Modal } from '@/components/ui/Modal';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
+import { baixarEstoquePorVenda, dispararPedidosEncomenda } from '@/lib/estoque';
 import { Plus, ShoppingCart, FileText, Loader2 } from 'lucide-react';
 
 interface PDVModalProps {
@@ -23,8 +25,21 @@ export function PDVModal({ isOpen, onClose, onSaved }: PDVModalProps) {
   const { data: produtos, loading: produtosLoading } = useCollection<Produto>('produtos');
   const { data: clientes } = useCollection<Cliente>('clientes');
   const { data: acabamentos } = useCollection<VariavelAcabamento>('variaveis_acabamento');
+  const { data: estoque } = useCollection<EstoqueItem>('estoque');
+  const { data: fornecedores } = useCollection<Fornecedor>('fornecedores');
   const { add: addAtendimento } = useAddDocument('atendimentos');
   const { add: addCliente } = useAddDocument('clientes');
+
+  // Disponibilidade por produto (showroom + depósito).
+  const disponibilidade = useMemo(() => {
+    const mapa: Record<string, number> = {};
+    estoque.forEach((e) => {
+      if (LOCALIZACOES_DISPONIVEIS.includes(e.localizacao)) {
+        mapa[e.produtoId] = (mapa[e.produtoId] || 0) + (e.quantidade || 0);
+      }
+    });
+    return mapa;
+  }, [estoque]);
 
   const [carrinho, setCarrinho] = useState<ItemCarrinho[]>([]);
   const [clienteId, setClienteId] = useState('');
@@ -87,6 +102,7 @@ export function PDVModal({ isOpen, onClose, onSaved }: PDVModalProps) {
         : pontuacaoPadrao;
     const precoAplicado = precoTabela * pontuacao;
 
+    const dispEstoque = disponibilidade[produtoId] ?? 0;
     const novoItem: ItemCarrinho = {
       produtoId,
       produto,
@@ -94,6 +110,7 @@ export function PDVModal({ isOpen, onClose, onSaved }: PDVModalProps) {
       quantidade,
       precoAplicado,
       desconto: 0,
+      modalidade: dispEstoque >= quantidade ? 'estoque' : 'encomenda',
     };
 
     setCarrinho([...carrinho, novoItem]);
@@ -101,6 +118,10 @@ export function PDVModal({ isOpen, onClose, onSaved }: PDVModalProps) {
 
   const handleRemoveItem = (index: number) => {
     setCarrinho(carrinho.filter((_, i) => i !== index));
+  };
+
+  const handleUpdateModalidade = (index: number, modalidade: 'estoque' | 'encomenda') => {
+    setCarrinho((prev) => prev.map((it, i) => (i === index ? { ...it, modalidade } : it)));
   };
 
   const handleCreateCliente = async () => {
@@ -205,11 +226,54 @@ export function PDVModal({ isOpen, onClose, onSaved }: PDVModalProps) {
         },
       };
 
-      await addAtendimento(atendimento);
+      const atendimentoId = await addAtendimento(atendimento);
+
+      // Integração com Estoque/Compras: apenas para vendas confirmadas.
+      let mensagemExtra = '';
+      if (tipoAtendimento === 'venda') {
+        const ctx = { registradoPorId: userProfile?.uid || '', registradoPorNome: userProfile?.nome };
+        const encomendas: Array<any> = [];
+
+        for (const item of carrinho) {
+          const disp = disponibilidade[item.produtoId] ?? 0;
+          const modalidade = item.modalidade ?? (disp >= item.quantidade ? 'estoque' : 'encomenda');
+
+          if (modalidade === 'estoque') {
+            await baixarEstoquePorVenda(
+              {
+                produtoId: item.produtoId,
+                produtoNome: item.produto.nome,
+                produtoSku: item.produto.sku,
+              },
+              item.quantidade,
+              atendimentoId,
+              ctx
+            );
+          } else {
+            const fornecedor = fornecedores.find((f) => f.id === item.produto.fornecedorId);
+            encomendas.push({
+              produtoId: item.produtoId,
+              nomeProduto: item.produto.nome,
+              skuProduto: item.produto.sku,
+              quantidade: item.quantidade,
+              custoUnitario: item.produto.custoProduto || 0,
+              icms: item.produto.icms || 0,
+              ipi: item.produto.ipi || 0,
+              fornecedorId: item.produto.fornecedorId || '',
+              fornecedorNome: fornecedor?.razaoSocial || '',
+            });
+          }
+        }
+
+        if (encomendas.length > 0) {
+          const numeros = await dispararPedidosEncomenda(encomendas, atendimentoId, ctx);
+          mensagemExtra = `\n\nPedido(s) de compra gerado(s) para itens sob encomenda: ${numeros.join(', ')}.`;
+        }
+      }
 
       setCarrinho([]);
       setClienteId('');
-      alert(`${tipoAtendimento === 'orcamento' ? 'Orçamento' : 'Venda'} criado com sucesso!`);
+      alert(`${tipoAtendimento === 'orcamento' ? 'Orçamento' : 'Venda'} criado com sucesso!${mensagemExtra}`);
       onSaved?.();
       onClose();
     } catch (err) {
@@ -302,6 +366,9 @@ export function PDVModal({ isOpen, onClose, onSaved }: PDVModalProps) {
             pontuacaoPadrao={pontuacaoPadrao}
             limitePerfil={limitePerfil}
             acabamentos={acabamentos}
+            mostrarModalidade={tipoAtendimento === 'venda'}
+            disponibilidade={disponibilidade}
+            onUpdateModalidade={handleUpdateModalidade}
           />
 
           {/* Ações Finais */}

@@ -22,6 +22,8 @@ import {
   Clock,
   CreditCard,
   CheckSquare,
+  Boxes,
+  ClipboardList,
 } from 'lucide-react';
 import { useState, useMemo } from 'react';
 
@@ -59,10 +61,11 @@ const navItems: NavItem[] = [
     icon: <LayoutDashboard className="w-4 h-4" />,
   },
 
-  // CRM
+  // Vendas (CRM + Vendas unificados — mesma atividade)
   {
-    label: 'CRM',
-    icon: <Users className="w-4 h-4" />,
+    label: 'Vendas',
+    icon: <ShoppingCart className="w-4 h-4" />,
+    requiredProfiles: ['admin', 'gerencia', 'vendedor'],
     children: [
       {
         label: 'Clientes',
@@ -76,15 +79,6 @@ const navItems: NavItem[] = [
         icon: <FileText className="w-4 h-4" />,
         requiredProfiles: ['admin', 'gerencia', 'vendedor'],
       },
-    ],
-  },
-
-  // Vendas
-  {
-    label: 'Vendas',
-    icon: <ShoppingCart className="w-4 h-4" />,
-    requiredProfiles: ['admin', 'gerencia', 'vendedor'],
-    children: [
       {
         label: 'Carteira',
         href: '/dashboard/carteira',
@@ -137,26 +131,41 @@ const navItems: NavItem[] = [
     ],
   },
 
-  // Catálogo
+  // Catálogo (inclui Estoque e Compras)
   {
     label: 'Catálogo',
     icon: <Package className="w-4 h-4" />,
-    requiredProfiles: ['admin', 'gerencia', 'comprador'],
+    requiredProfiles: ['admin', 'gerencia', 'comprador', 'estoquista'],
     children: [
       {
         label: 'Produtos',
         href: '/dashboard/produtos',
         icon: <Package className="w-4 h-4" />,
+        requiredProfiles: ['admin', 'gerencia', 'comprador'],
+      },
+      {
+        label: 'Estoque',
+        href: '/dashboard/estoque',
+        icon: <Boxes className="w-4 h-4" />,
+        requiredProfiles: ['admin', 'gerencia', 'comprador', 'estoquista'],
+      },
+      {
+        label: 'Compras',
+        href: '/dashboard/compras',
+        icon: <ClipboardList className="w-4 h-4" />,
+        requiredProfiles: ['admin', 'gerencia', 'comprador'],
       },
       {
         label: 'Categorias',
         href: '/dashboard/configuracoes/categorias',
         icon: <CheckSquare className="w-4 h-4" />,
+        requiredProfiles: ['admin', 'gerencia', 'comprador'],
       },
       {
         label: 'Fornecedores',
         href: '/dashboard/fornecedores',
         icon: <Truck className="w-4 h-4" />,
+        requiredProfiles: ['admin', 'gerencia', 'comprador'],
       },
     ],
   },
