@@ -12,6 +12,21 @@ export interface Empresa {
     gerencia: number;
   };
   diasValidadeOrcamento: number;
+  // Motor de precificação — condições de pagamento
+  taxaJurosMensal?: number; // ex.: 0.02 = 2% ao mês (Tabela Price)
+  condicoesPagamento?: CondicaoPagamentoConfig[];
+}
+
+// Condição de pagamento cadastrável (Configurações › Precificação).
+// Alimenta o orçamento, o financeiro e o PDF (fonte única).
+export interface CondicaoPagamentoConfig {
+  id: string; // 'avista', '1x'...'12x', 'e1'...'e12'
+  nome: string; // "À Vista", "3x", "Entrada + 6x"
+  tipo: 'avista' | 'parcelado' | 'entrada_parcelado';
+  parcelas: number; // nº de parcelas (sem contar a entrada)
+  temEntrada: boolean;
+  ativo: boolean;
+  ordem: number;
 }
 
 // Usuários
@@ -235,16 +250,25 @@ export interface Atendimento {
   vendedorId: string;
   itens: ItemAtendimento[];
   resumoVisual: {
-    subtotal: number;
+    subtotal: number; // soma à vista (preço de tabela)
     valorDescontos: number;
-    totalFinal: number;
+    totalFinal: number; // valor da proposta (com juros da condição)
     pontuacaoMedia: number;
+    precoVista?: number; // total à vista já com desconto (sem juros)
+    descontoPercentual?: number;
   };
-  pagamentos: Array<{
-    forma: 'pix' | 'cartao' | 'dinheiro' | 'cheque';
-    valor: number;
-    parcelas?: number;
-  }>;
+  // Condição de pagamento escolhida + plano de parcelas (com datas).
+  pagamento?: {
+    condicaoId: string;
+    condicaoNome: string;
+    valorProposta: number; // total com juros
+    entrada: number; // valor da entrada (0 se não houver)
+    parcelas: Array<{
+      numero: number;
+      valor: number;
+      vencimento: Date;
+    }>;
+  };
   logistica?: {
     statusEntrega: 'agendada' | 'em_rota' | 'entregue' | 'montada' | 'problema';
     dataAgendada?: Date;
