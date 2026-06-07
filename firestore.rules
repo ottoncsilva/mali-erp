@@ -125,6 +125,11 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // ENTREGAS & MONTAGEM e ASSISTÊNCIA TÉCNICA (operações).
+    match /entregas/{id} {
+      allow read, write: if isAuth();
+    }
+
     match /assistencia_tecnica/{id} {
       allow read, write: if isAuth();
     }
