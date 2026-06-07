@@ -22,20 +22,32 @@ export function useCollection<T>(collectionName: string) {
 
   useEffect(() => {
     setLoading(true);
-    const unsubscribe = onSnapshot(collection(db, collectionName), (snapshot) => {
-      try {
-        const docs = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        } as T & { id: string }));
-        setData(docs);
-        setError(null);
-      } catch (err) {
+    const unsubscribe = onSnapshot(
+      collection(db, collectionName),
+      (snapshot) => {
+        try {
+          const docs = snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          } as T & { id: string }));
+          setData(docs);
+          setError(null);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Erro ao carregar dados');
+        } finally {
+          setLoading(false);
+        }
+      },
+      // Callback de erro: sem ele, uma falha (ex.: permissão negada) deixaria
+      // `loading` travado em true para sempre (spinner infinito). Aqui
+      // liberamos o loading e expomos o erro para a tela poder reagir.
+      (err) => {
+        console.error(`[useCollection:${collectionName}]`, err);
         setError(err instanceof Error ? err.message : 'Erro ao carregar dados');
-      } finally {
+        setData([]);
         setLoading(false);
       }
-    });
+    );
 
     return () => unsubscribe();
   }, [collectionName]);

@@ -373,35 +373,144 @@ export interface AssistenciaTecnica {
   resolvidoEm?: Date;
 }
 
-// Financeiro
-export interface ContaReceber {
+// ===================== FINANCEIRO =====================
+
+// Forma de pagamento/recebimento (registrada na baixa — regime de caixa).
+export type FormaPagamento =
+  | 'dinheiro'
+  | 'pix'
+  | 'cartao_credito'
+  | 'cartao_debito'
+  | 'boleto'
+  | 'transferencia'
+  | 'cheque'
+  | 'outro';
+
+// Plano de contas: classifica cada lançamento e define onde ele entra na DRE.
+export type TipoCategoriaFinanceira = 'receita' | 'despesa';
+
+export type GrupoDRE =
+  | 'receita_bruta' // vendas de mercadorias/serviços
+  | 'deducoes' // impostos sobre venda, devoluções
+  | 'cmv' // custo das mercadorias vendidas
+  | 'despesa_operacional' // aluguel, energia, marketing...
+  | 'despesa_pessoal' // salários, comissões, encargos
+  | 'despesa_financeira' // juros, tarifas bancárias
+  | 'outras_receitas' // receitas não operacionais
+  | 'nao_operacional'; // aportes, retiradas, investimentos (fora do resultado)
+
+export interface CategoriaFinanceira {
   id: string;
-  referenciaId: string;
-  parcelas: Array<{
-    numero: number;
-    valor: number;
-    vencimento: Date;
-    pago: boolean;
-    pagoEm?: Date;
-  }>;
-  valorTotal: number;
-  status: 'aberto' | 'parcial' | 'pago' | 'vencido';
-  descricao?: string;
+  nome: string;
+  tipo: TipoCategoriaFinanceira;
+  grupoDRE: GrupoDRE;
+  cor?: string;
+  ativo: boolean;
+  sistema?: boolean; // categorias padrão não podem ser excluídas
+  criadoEm?: Date;
+  atualizadoEm?: Date;
 }
 
+// Conta bancária / caixa / carteira digital.
+export type TipoContaBancaria = 'caixa' | 'banco' | 'carteira_digital' | 'outro';
+
+export interface ContaBancaria {
+  id: string;
+  nome: string; // "Caixa Loja", "Itaú CC", "PIX"
+  tipo: TipoContaBancaria;
+  banco?: string;
+  agencia?: string;
+  conta?: string;
+  saldoInicial: number;
+  saldoAtual: number; // denormalizado; recalculado a cada movimento
+  ativo: boolean;
+  cor?: string;
+  criadoEm?: Date;
+  atualizadoEm?: Date;
+}
+
+// De onde nasceu o título.
+export type OrigemConta = 'venda' | 'compra' | 'comissao' | 'especificador' | 'manual';
+
+// Status (armazenado) do título. "vencido" é derivado em tela a partir das datas.
+export type StatusConta = 'aberto' | 'parcial' | 'pago' | 'cancelado';
+
+// Parcela de um título (a pagar ou a receber).
+export interface ParcelaConta {
+  numero: number;
+  valor: number; // valor original (regime de competência)
+  vencimento: Date;
+  pago: boolean;
+  pagoEm?: Date;
+  // Dados da baixa (regime de caixa)
+  valorPago?: number; // efetivamente movimentado (com juros/multa/desconto)
+  juros?: number;
+  multa?: number;
+  desconto?: number;
+  contaBancariaId?: string; // conta de liquidação
+  formaPagamento?: FormaPagamento;
+  movimentoId?: string; // movimento de caixa gerado pela baixa
+}
+
+// Título a receber.
+export interface ContaReceber {
+  id: string;
+  origem: OrigemConta;
+  referenciaId?: string; // atendimento/venda que originou
+  clienteId?: string;
+  contraparteNome?: string; // cliente (denormalizado)
+  categoriaId?: string;
+  dataCompetencia?: Date; // data do fato gerador (regime de competência)
+  parcelas: ParcelaConta[];
+  valorTotal: number;
+  status: StatusConta;
+  descricao?: string;
+  observacoes?: string;
+  criadoEm?: Date;
+  atualizadoEm?: Date;
+}
+
+// Título a pagar.
 export interface ContaPagar {
   id: string;
-  referenciaId: string;
-  parcelas: Array<{
-    numero: number;
-    valor: number;
-    vencimento: Date;
-    pago: boolean;
-    pagoEm?: Date;
-  }>;
+  origem: OrigemConta;
+  referenciaId?: string; // atendimento/nota/comissão que originou
+  fornecedorId?: string;
+  colaboradorId?: string; // quando for comissão de colaborador
+  contraparteNome?: string; // fornecedor/colaborador (denormalizado)
+  categoriaId?: string;
+  dataCompetencia?: Date;
+  parcelas: ParcelaConta[];
   valorTotal: number;
-  status: 'aberto' | 'parcial' | 'pago' | 'vencido';
+  status: StatusConta;
   descricao?: string;
+  observacoes?: string;
+  criadoEm?: Date;
+  atualizadoEm?: Date;
+}
+
+// Movimento de caixa: registro imutável de entrada/saída de dinheiro numa conta.
+// É a base do regime de CAIXA (DRE e fluxo realizado) e do extrato bancário.
+export type TipoMovimento = 'entrada' | 'saida' | 'transferencia';
+
+export interface MovimentoCaixa {
+  id: string;
+  contaBancariaId: string;
+  contaBancariaNome?: string;
+  tipo: TipoMovimento;
+  valor: number; // sempre positivo
+  data: Date; // data efetiva do caixa
+  categoriaId?: string;
+  categoriaNome?: string;
+  descricao: string;
+  origemTipo: 'conta_receber' | 'conta_pagar' | 'transferencia' | 'ajuste';
+  origemId?: string; // título de origem
+  parcelaNumero?: number;
+  contraContaId?: string; // conta destino (transferência)
+  formaPagamento?: FormaPagamento;
+  registradoPorId?: string;
+  registradoPorNome?: string;
+  criadoEm?: Date;
 }
 
 // ===================== FILTROS =====================

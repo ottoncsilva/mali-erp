@@ -97,6 +97,29 @@ service cloud.firestore {
       allow update, delete: if podeFinanceiro();
     }
 
+    // CATEGORIAS FINANCEIRAS — plano de contas para classificação.
+    // Leitura por autenticado; escrita só gestor.
+    match /categorias_financeiras/{id} {
+      allow read: if isAuth();
+      allow write: if isGestor();
+    }
+
+    // CONTAS BANCÁRIAS — caixa, banco, carteira digital.
+    // Leitura por autenticado; escrita só gestor (alterar saldo é crítico).
+    match /contas_bancarias/{id} {
+      allow read: if isAuth();
+      allow write: if isGestor();
+    }
+
+    // MOVIMENTOS DE CAIXA — trilha imutável de entradas/saídas reais.
+    // Leitura por autenticado; criação por qualquer um (ao baixar uma conta).
+    // Edição/exclusão bloqueadas para preservar auditoria.
+    match /movimentos_caixa/{id} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if false;
+    }
+
     match /assistencia_tecnica/{id} {
       allow read, write: if isAuth();
     }
