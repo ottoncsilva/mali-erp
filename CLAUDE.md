@@ -84,10 +84,23 @@ Sistema de gestão completo para loja de móveis **Mali Mobile**, construído co
 | Estoquista | Resumido | ❌ | ❌ | ❌ | ❌ | ❌ | - |
 
 ### Autenticação, perfis e permissões
-- **Fonte única**: `lib/auth/permissoes.ts` — tipo `Perfil`, `Permissao`, mapa
-  `PERMISSOES_POR_PERFIL` e helpers `can(perfil, permissao)`, `temPerfil`,
-  `limitePontuacao`. A matriz acima vive em código aqui.
-- **Hook**: `useAuth()` expõe `userProfile`, `liberado` e `can(permissao)`.
+- **Fonte única (defaults)**: `lib/auth/permissoes.ts` — tipo `Perfil`, `Permissao`,
+  `PERMISSOES_POR_PERFIL`, `CARGOS_PADRAO` (seed), labels e grupos de permissão,
+  tipos de comissão (`BaseComissao`, `ModoComissao`).
+- **Cargos dinâmicos**: coleção `cargos` (Firestore) é a verdade em runtime. Cada
+  cargo: `permissoes[]`, `limitePontuacao`, e config de comissão
+  (`comissaoAtiva`, `comissaoPct`, `baseComissao`, `modoComissao`, `sistema`).
+  Semeada de `CARGOS_PADRAO` por `seedCargosSeVazio()` ao abrir Cargos/Comissões.
+- **Hook**: `useAuth()` resolve permissões/trava/nome do cargo do usuário a
+  partir do doc `cargos/{perfil}` (fallback p/ defaults). Expõe `userProfile`,
+  `permissoes`, `cargoNome`, `limitePontuacao`, `liberado`, `can(permissao)`.
+- **Telas de Configurações**: `usuarios` (colaboradores: dados + acesso + comissão),
+  `cargos` (permissões por cargo, criar/excluir), `comissoes` (% e forma de
+  remuneração por cargo), `empresa` (cadastro completo + logo no topo via `useEmpresa`).
+- **Comissão de venda** (`lib/comissoes/calculo.ts`): NÃO altera preço; gera contas
+  a pagar por venda. Regra por cargo — modo `vendedor` (paga quem fechou) ou
+  `override` (paga todos do cargo). % do cargo, com override por colaborador.
+  Especificador segue separado (markup no preço). Integrado no PDV ao finalizar venda.
 - **Primeiro acesso**: usuário sem perfil é criado como `sem_acesso` (inativo) e
   vê tela "acesso pendente" até um gestor liberar. E-mails em
   `NEXT_PUBLIC_ADMIN_EMAILS` (separados por vírgula) viram `admin`

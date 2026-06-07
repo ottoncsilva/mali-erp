@@ -9,7 +9,7 @@ import { condicoesPadrao, fatorCondicao } from '@/lib/utils/precificacao';
 import { AlertCircle, Save, Plus, Trash2, Percent } from 'lucide-react';
 
 export default function PrecificacaoPage() {
-  const { can } = useAuth();
+  const { can, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [config, setConfig] = useState({
@@ -103,6 +103,10 @@ export default function PrecificacaoPage() {
     }
   };
 
+  if (loading || authLoading) {
+    return <div className="text-center py-8">Carregando configurações...</div>;
+  }
+
   if (!can('config.precificacao')) {
     return (
       <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-6 flex gap-4">
@@ -113,10 +117,6 @@ export default function PrecificacaoPage() {
         </div>
       </div>
     );
-  }
-
-  if (loading) {
-    return <div className="text-center py-8">Carregando configurações...</div>;
   }
 
   // Exemplo de impacto dos juros sobre R$ 1.000 à vista.
