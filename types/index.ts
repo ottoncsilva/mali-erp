@@ -184,6 +184,18 @@ export interface NotaFiscal {
   atualizadoEm: Date;
 }
 
+// Depósitos (Localizações Físicas)
+export interface Deposito {
+  id: string;
+  nome: string;
+  endereco?: string;
+  cidade?: string;
+  responsavel?: string; // User ID do gerente de depósito
+  ativo: boolean;
+  criadoEm: Date;
+  atualizadoEm: Date;
+}
+
 // Clientes
 export interface Cliente {
   id: string;
@@ -286,4 +298,20 @@ export interface ContaPagar {
   }>;
   valorTotal: number;
   status: 'aberto' | 'parcial' | 'pago' | 'vencido';
+}
+
+// ===================== FILTROS =====================
+
+export interface FiltroEstoque {
+  depositoIds: string[];
+  statusEstoque: 'abaixo' | 'normal' | 'zerado' | 'todos';
+  textoBusca: string;
+}
+
+export interface FiltroProduto {
+  textoBusca: string;
+  categoriaIds: string[];
+  estoqueQuantidadeMin?: number;
+  estoqueQuantidadeMax?: number;
+  status: 'ativo' | 'inativo' | 'todos';
 }
