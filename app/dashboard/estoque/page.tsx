@@ -8,6 +8,7 @@ import { TransferenciaModal } from '@/components/modules/estoque/TransferenciaMo
 import { AjusteModal } from '@/components/modules/estoque/AjusteModal';
 import { FiltrosEstoque } from '@/components/modules/estoque/FiltrosEstoque';
 import { DepositBreakdownPopover } from '@/components/ui/DepositBreakdownPopover';
+import { ProdutoDetailModal } from '@/components/modules/shared/ProdutoDetailModal';
 import { LOCALIZACOES } from '@/types';
 import type {
   Deposito,
@@ -39,6 +40,7 @@ export default function EstoquePage() {
   const [aba, setAba] = useState<'saldos' | 'movimentacoes'>('saldos');
   const [transferindo, setTransferindo] = useState<ReturnType<typeof paraSaldos> | null>(null);
   const [ajustando, setAjustando] = useState<ReturnType<typeof paraSaldos> | null>(null);
+  const [detalhandoId, setDetalhandoId] = useState<string | null>(null);
   const [filtros, setFiltros] = useState<FiltroEstoque>({
     depositoIds: [],
     statusEstoque: 'todos',
@@ -92,12 +94,15 @@ export default function EstoquePage() {
       header: 'Produto',
       accessor: 'produtoNome',
       render: (_: any, row: EstoqueAgregado) => (
-        <div className="flex items-center gap-3">
+        <button
+          onClick={() => setDetalhandoId(row.produtoId)}
+          className="flex items-center gap-3 text-left hover:opacity-80 transition-opacity"
+        >
           {row.fotoPrincipal && (
             <img src={row.fotoPrincipal} alt={row.produtoNome} className="w-10 h-10 rounded object-cover" />
           )}
           <div>
-            <p className="font-medium text-foreground flex items-center gap-2">
+            <p className="font-medium text-foreground flex items-center gap-2 hover:text-mali-primary transition-colors">
               {row.produtoNome}
               {row.statusEstoque === 'abaixo' && (
                 <span title="Abaixo do estoque mínimo">
@@ -107,7 +112,7 @@ export default function EstoquePage() {
             </p>
             <p className="text-xs text-muted-foreground">{row.produtoSku}</p>
           </div>
-        </div>
+        </button>
       ),
     },
     {
@@ -284,6 +289,12 @@ export default function EstoquePage() {
         onDone={() => {}}
         produto={ajustando}
         usuario={usuario}
+      />
+      <ProdutoDetailModal
+        produtoId={detalhandoId}
+        isOpen={!!detalhandoId}
+        onClose={() => setDetalhandoId(null)}
+        mode="edit"
       />
     </div>
   );
