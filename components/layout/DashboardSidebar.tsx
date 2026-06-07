@@ -159,7 +159,7 @@ const navItems: NavItem[] = [
         requiredProfiles: ['admin', 'gerencia', 'comprador'],
       },
       {
-        label: 'Editar Depósitos',
+        label: 'Depósitos',
         action: 'depositos-modal',
         icon: <Warehouse className="w-4 h-4" />,
         requiredProfiles: ['admin', 'gerencia', 'comprador'],
