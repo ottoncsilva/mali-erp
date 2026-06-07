@@ -3,8 +3,12 @@ import { CategoriaFinanceira, GrupoDRE, TipoCategoriaFinanceira } from '@/types'
 /**
  * Categorias financeiras padrão (plano de contas).
  * Semeadas na primeira abertura da página de Categorias Financeiras.
+ * `ativo` é adicionado no momento da gravação (seedCategoriasSeVazio).
  */
-export const CATEGORIAS_PADRAO: CategoriaFinanceira[] = [
+export const CATEGORIAS_PADRAO: Omit<
+  CategoriaFinanceira,
+  'ativo' | 'criadoEm' | 'atualizadoEm'
+>[] = [
   // RECEITAS
   {
     id: 'receita_vendas',
