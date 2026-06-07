@@ -1,25 +1,36 @@
 # Mali Mobile ERP - Documentação para Claude
 
 ## 📋 Visão Geral
-Sistema de gestão completo para loja de móveis **Mali Mobile**, construído com Next.js 14, Firebase e Tailwind CSS. Desenvolvido em 5 fases estruturadas.
+Sistema de gestão completo para loja de móveis **Mali Mobile**, construído com Next.js 16, Firebase (Auth + Firestore), MinIO (imagens) e Tailwind CSS v4.
 
 ## 🎨 Identidade Visual
 - **Cor Primária**: Âmbar/Dourado (`#D4AF37`)
 - **Cor Secundária**: Cinza-Azul (`#5A6B7C`)
-- **Modo**: Dark Theme com acentos dourados
-- **Componentes**: Shadcn/ui customizado
+- **Modo**: **Light Theme** (fundo branco/claro com acentos dourados)
+- **Componentes**: UI customizada (Tailwind v4)
 
 ## 🏗️ Arquitetura
 
 ### Stack
-- **Framework**: Next.js 14 (App Router)
+- **Framework**: Next.js 16 (App Router)
 - **Banco de Dados**: Firebase Firestore (NoSQL)
 - **Autenticação**: Firebase Auth
-- **Armazenamento de Fotos**: Firebase Storage
-- **Styling**: Tailwind CSS + Shadcn/ui
+- **Armazenamento de Fotos**: **MinIO** (S3-compatível, auto-hospedado na VPS)
+- **Styling**: Tailwind CSS v4 (config CSS-first via `@theme` em `app/globals.css`)
 - **Gráficos**: Recharts
 - **PDFs**: @react-pdf/renderer
-- **Deploy**: Docker + GitHub Actions → VPS Hostinger
+- **Deploy**: Docker + EasyPanel → VPS Hostinger
+
+### Tema (Tailwind v4)
+- Tema definido em `app/globals.css` no bloco `@theme` (fonte única de cores).
+- `tailwind.config.ts` contém apenas os `content` paths.
+- Tema light por padrão (sem classe `dark` no `<html>`).
+
+### Armazenamento de Imagens (MinIO)
+- Imagens enviadas via rota de API server-side: `app/api/upload/route.ts`.
+- Credenciais do MinIO ficam **apenas no servidor** (variáveis `MINIO_*`).
+- Bucket público para leitura → URLs abrem direto no navegador.
+- Cliente MinIO em `lib/minio/config.ts`; hook `useStorageUpload` chama `/api/upload`.
 
 ### Fases de Desenvolvimento
 
@@ -74,15 +85,32 @@ Sistema de gestão completo para loja de móveis **Mali Mobile**, construído co
 
 ## 🔧 Configuração de Ambiente
 
-### Variáveis Necessárias (.env.local)
+### Variáveis Necessárias (.env.local / EasyPanel)
 ```
+# Firebase (Auth + Firestore) — públicas (build-time)
 NEXT_PUBLIC_FIREBASE_API_KEY=xxx
 NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=xxx.firebaseapp.com
 NEXT_PUBLIC_FIREBASE_PROJECT_ID=xxx
 NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=xxx.appspot.com
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=xxx
 NEXT_PUBLIC_FIREBASE_APP_ID=xxx
+
+# MinIO (imagens) — SOMENTE SERVIDOR (sem NEXT_PUBLIC_)
+MINIO_ENDPOINT=outros-minio.rbhavy.easypanel.host
+MINIO_PORT=443
+MINIO_USE_SSL=true
+MINIO_ACCESS_KEY=xxx
+MINIO_SECRET_KEY=xxx
+MINIO_BUCKET=mali-produtos
+MINIO_PUBLIC_URL=https://outros-minio.rbhavy.easypanel.host
 ```
+
+### Segurança Firestore
+- Regras em `firestore.rules` (publicar via Console do Firebase ou `firebase deploy`).
+- Leitura pública **apenas** de orçamentos (`atendimentos` com `tipo == 'orcamento'`)
+  e do catálogo (`produtos`, `variaveis_acabamento`).
+- Demais coleções (clientes, etc.) exigem autenticação. Página pública usa
+  campos denormalizados (`clienteNome`, `clienteTelefone`) no atendimento.
 
 ## 📌 Convenções e Regras
 
@@ -125,8 +153,8 @@ Pontuação Real = CMV / Preço Aplicado
 - `useDeleteDocument(collectionName)` - Deleta documento
 
 ### useStorageUpload.ts
-- `uploadFile(file, path)` - Upload de arquivo para Firebase Storage
-- `deleteFile(path)` - Deleta arquivo do Storage
+- `uploadFile(file, path)` - Upload para o MinIO via `/api/upload` (retorna URL pública)
+- `deleteFile(path)` - Remove arquivo do MinIO via `/api/upload`
 
 ## 📦 Componentes UI Reutilizáveis
 
@@ -151,15 +179,39 @@ Pontuação Real = CMV / Preço Aplicado
 </Modal>
 ```
 
-## 📍 Rotas Implementadas
+## 📍 Rotas Implementadas (URLs `/dashboard/*`)
+
+> Estrutura de pastas: `app/dashboard/*` (rota real `/dashboard`).
+> A raiz `/` redireciona para `/login`; após login vai para `/dashboard`.
+
+### Dashboard & CRM
+- `/dashboard` - Dashboard com KPIs reais (faturamento, ticket, estoque crítico)
+- `/dashboard/clientes` - CRUD Clientes
+- `/dashboard/orcamentos` - Lista de orçamentos + botão "Adicionar Novo Orçamento" (abre PDV em modal)
+- `/dashboard/carteira` - Carteira do vendedor (pipeline)
 
 ### Catálogo
-- `/dashboard/produtos` - CRUD Produtos com fotos
-- `/dashboard/configuracoes/categorias` - CRUD Categorias
+- `/dashboard/produtos` - CRUD Produtos com fotos (MinIO)
 - `/dashboard/fornecedores` - CRUD Fornecedores
+- `/dashboard/configuracoes/categorias` - CRUD Categorias
 - `/dashboard/configuracoes/acabamentos` - CRUD Acabamentos
-- `/dashboard/precificacao` - Configuração de Pontuação e Travas
+
+### Configurações (admin/gerência)
+- `/dashboard/configuracoes` - Painel de configurações
+- `/dashboard/configuracoes/precificacao` - Pontuação e Travas (movido de `/dashboard/precificacao`)
+
+### Operações & Financeiro
+- `/dashboard/entregas`, `/dashboard/assistencia`
+- `/dashboard/financeiro`, `/dashboard/relatorios`, `/dashboard/apuracao`
+
+### Público & API
+- `/orcamento/[id]` - Página pública do orçamento (sem login)
+- `/api/upload` - Rota server-side de upload/remoção de imagens no MinIO
+
+### PDV (Balcão)
+- O PDV **não é mais uma página separada** — virou um modal (`components/modules/PDVModal.tsx`)
+  acionado pelo botão "Adicionar Novo Orçamento" em `/dashboard/orcamentos`.
 
 ---
 
-**Última atualização**: 2026-06-06 - Fase 2 Completa ✅
+**Última atualização**: 2026-06-07 - Tema light, menu reorganizado, PDV em modal e migração de imagens para MinIO ✅
