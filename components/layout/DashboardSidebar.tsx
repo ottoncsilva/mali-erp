@@ -183,11 +183,6 @@ const navItems: NavItem[] = [
         requiredProfiles: ['admin', 'gerencia'],
       },
       {
-        label: 'Acabamentos',
-        href: '/dashboard/configuracoes/acabamentos',
-        icon: <Wrench className="w-4 h-4" />,
-      },
-      {
         label: 'Gerais',
         href: '/dashboard/configuracoes',
         icon: <Settings className="w-4 h-4" />,
