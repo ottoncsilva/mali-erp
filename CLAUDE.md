@@ -83,6 +83,26 @@ Sistema de gestão completo para loja de móveis **Mali Mobile**, construído co
 | Financeiro | Resumido | ❌ | ❌ | ❌ | ✅ | ❌ | - |
 | Estoquista | Resumido | ❌ | ❌ | ❌ | ❌ | ❌ | - |
 
+### Autenticação, perfis e permissões
+- **Fonte única**: `lib/auth/permissoes.ts` — tipo `Perfil`, `Permissao`, mapa
+  `PERMISSOES_POR_PERFIL` e helpers `can(perfil, permissao)`, `temPerfil`,
+  `limitePontuacao`. A matriz acima vive em código aqui.
+- **Hook**: `useAuth()` expõe `userProfile`, `liberado` e `can(permissao)`.
+- **Primeiro acesso**: usuário sem perfil é criado como `sem_acesso` (inativo) e
+  vê tela "acesso pendente" até um gestor liberar. E-mails em
+  `NEXT_PUBLIC_ADMIN_EMAILS` (separados por vírgula) viram `admin`
+  automaticamente (bootstrap/recuperação).
+- **Inativo**: usuário com `ativo:false` ou `sem_acesso` é bloqueado no layout.
+- **Gestão de usuários**: `/dashboard/configuracoes/usuarios` (permissão
+  `usuarios.gerir`). Convite por e-mail cria a conta numa instância Firebase
+  secundária (`getSecondaryAuth`, não desloga o admin) + `sendPasswordResetEmail`.
+- **Guarda de página**: `<ProtegerPagina permissao="...">` em
+  `components/auth/ProtegerPagina.tsx`.
+- **Firestore**: regras endurecem o crítico — `usuarios` (escrita só gestor;
+  create permite bootstrap próprio), `empresa` (config só gestor),
+  `contas_pagar`/`contas_receber` (create por autenticado p/ fechamento de venda;
+  update/baixa só perfis financeiros).
+
 ## 🔧 Configuração de Ambiente
 
 ### Variáveis Necessárias (.env.local / EasyPanel)

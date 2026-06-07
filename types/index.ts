@@ -34,7 +34,14 @@ export interface Usuario {
   uid: string;
   nome: string;
   email: string;
-  perfil: 'admin' | 'gerencia' | 'vendedor' | 'comprador' | 'financeiro' | 'estoquista';
+  perfil:
+    | 'admin'
+    | 'gerencia'
+    | 'vendedor'
+    | 'comprador'
+    | 'financeiro'
+    | 'estoquista'
+    | 'sem_acesso';
   ativo: boolean;
   avatarURL?: string;
   comissaoPct?: number;
