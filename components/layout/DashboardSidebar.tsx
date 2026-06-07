@@ -31,7 +31,6 @@ import {
   Landmark,
 } from 'lucide-react';
 import { useState, useMemo } from 'react';
-import { DepositosModal } from '@/components/modules/estoque/DepositosModal';
 import { Permissao } from '@/lib/auth';
 
 // Icon component para Briefcase
@@ -59,7 +58,6 @@ interface NavItem {
    *  todos os filhos forem filtrados. */
   permissao?: Permissao;
   children?: NavItem[];
-  action?: 'depositos-modal';
 }
 
 const navItems: NavItem[] = [
@@ -127,7 +125,7 @@ const navItems: NavItem[] = [
     icon: <CreditCard className="w-4 h-4" />,
     children: [
       {
-        label: 'Contas a Receber',
+        label: 'Recebimentos',
         href: '/dashboard/financeiro',
         icon: <DollarSign className="w-4 h-4" />,
         permissao: 'financeiro.acessar',
@@ -184,7 +182,7 @@ const navItems: NavItem[] = [
       },
       {
         label: 'Depósitos',
-        action: 'depositos-modal',
+        href: '/dashboard/configuracoes/depositos',
         icon: <Warehouse className="w-4 h-4" />,
         permissao: 'estoque.acessar',
       },
@@ -253,7 +251,6 @@ export default function DashboardSidebar({ isOpen, onToggle }: DashboardSidebarP
   const router = useRouter();
   const pathname = usePathname();
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
-  const [depositosModalOpen, setDepositosModalOpen] = useState(false);
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -302,12 +299,6 @@ export default function DashboardSidebar({ isOpen, onToggle }: DashboardSidebarP
     const isExpanded = expandedItems.has(item.label);
     const isRoot = depth === 0;
 
-    const handleAction = () => {
-      if (item.action === 'depositos-modal') {
-        setDepositosModalOpen(true);
-      }
-    };
-
     return (
       <div key={item.label}>
         {item.href ? (
@@ -325,21 +316,6 @@ export default function DashboardSidebar({ isOpen, onToggle }: DashboardSidebarP
             {item.icon}
             {isOpen && <span className="flex-1">{item.label}</span>}
           </Link>
-        ) : item.action ? (
-          // Action button item
-          <button
-            onClick={handleAction}
-            className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
-              isActive
-                ? 'bg-mali-primary/10 text-mali-primary font-medium'
-                : 'text-muted-foreground hover:bg-background hover:text-foreground'
-            }`}
-            style={{ paddingLeft: `${12 + depth * 12}px` }}
-            title={!isOpen ? item.label : ''}
-          >
-            {item.icon}
-            {isOpen && <span className="flex-1">{item.label}</span>}
-          </button>
         ) : (
           // Submenu trigger
           <button
@@ -436,8 +412,6 @@ export default function DashboardSidebar({ isOpen, onToggle }: DashboardSidebarP
           </button>
         </div>
       </div>
-
-      <DepositosModal isOpen={depositosModalOpen} onClose={() => setDepositosModalOpen(false)} />
     </>
   );
 }
