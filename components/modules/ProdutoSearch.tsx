@@ -1,25 +1,22 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Produto, VariavelAcabamento } from '@/types';
+import { Produto } from '@/types';
 import { Search, Plus, X } from 'lucide-react';
 
 interface ProdutoSearchProps {
   produtos: (Produto & { id: string })[];
-  acabamentos: (VariavelAcabamento & { id: string })[];
-  onAddItem: (produtoId: string, acabamentoId: string, quantidade: number) => void;
+  onAddItem: (produtoId: string, quantidade: number) => void;
   loading?: boolean;
 }
 
 export function ProdutoSearch({
   produtos,
-  acabamentos,
   onAddItem,
   loading,
 }: ProdutoSearchProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProduto, setSelectedProduto] = useState<(Produto & { id: string }) | null>(null);
-  const [selectedAcabamento, setSelectedAcabamento] = useState('');
   const [quantidade, setQuantidade] = useState(1);
 
   const filtrados = useMemo(() => {
@@ -34,25 +31,19 @@ export function ProdutoSearch({
 
   const handleSelectProduto = (produto: Produto & { id: string }) => {
     setSelectedProduto(produto);
-    setSelectedAcabamento('');
     setQuantidade(1);
   };
 
   const handleAddItem = () => {
-    if (!selectedProduto || !selectedAcabamento) {
-      alert('Selecione um produto e um acabamento');
+    if (!selectedProduto) {
+      alert('Selecione um produto');
       return;
     }
-    onAddItem(selectedProduto.id, selectedAcabamento, quantidade);
+    onAddItem(selectedProduto.id, quantidade);
     setSelectedProduto(null);
-    setSelectedAcabamento('');
     setQuantidade(1);
     setSearchTerm('');
   };
-
-  const acabamentosDisponiveis = selectedProduto
-    ? acabamentos.filter((a) => (selectedProduto.acabamentosDisponiveis || []).includes(a.id))
-    : [];
 
   return (
     <div className="bg-card rounded-lg border border-border p-4 space-y-4">
@@ -130,27 +121,6 @@ export function ProdutoSearch({
             </button>
           </div>
 
-          {/* Acabamento Selection */}
-          {acabamentosDisponiveis.length > 0 && (
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
-                Acabamento
-              </label>
-              <select
-                value={selectedAcabamento}
-                onChange={(e) => setSelectedAcabamento(e.target.value)}
-                className="w-full px-3 py-2 bg-card border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-mali-primary text-sm"
-              >
-                <option value="">Selecione um acabamento</option>
-                {acabamentosDisponiveis.map((acabamento) => (
-                  <option key={acabamento.id} value={acabamento.id}>
-                    {acabamento.nomeDaOpcao}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
           {/* Quantidade */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
@@ -169,8 +139,7 @@ export function ProdutoSearch({
           <div className="flex gap-2">
             <button
               onClick={handleAddItem}
-              disabled={!selectedAcabamento}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-mali-primary to-mali-primary-dark text-mali-secondary rounded-md hover:shadow-lg transition-all disabled:opacity-50 font-medium"
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-mali-primary to-mali-primary-dark text-mali-secondary rounded-md hover:shadow-lg transition-all font-medium"
             >
               <Plus className="w-4 h-4" />
               Adicionar ao Carrinho
@@ -187,3 +156,4 @@ export function ProdutoSearch({
     </div>
   );
 }
+

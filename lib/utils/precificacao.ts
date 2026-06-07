@@ -5,7 +5,6 @@ import { Produto } from '@/types';
 export interface ItemCarrinho {
   produtoId: string;
   produto: Produto & { id: string };
-  acabamentoEscolhido: string;
   quantidade: number;
   precoAplicado: number; // Preço que será cobrado
   desconto: number; // Desconto em reais

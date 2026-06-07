@@ -2,8 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { ItemCarrinho, processarSimulacaoCompleta, CondicaoPagamento, validarTrvasdaNegociacao } from '@/lib/utils/precificacao';
-import { Produto, VariavelAcabamento } from '@/types';
-import { Trash2, ChevronDown, AlertCircle } from 'lucide-react';
+import { Trash2, AlertCircle } from 'lucide-react';
 import { calcularCMV, calcularPrecoTabela, calcularPontuacaoReal } from '@/lib/utils/precificacao';
 
 interface CarrinhoSimuladorProps {
@@ -12,7 +11,6 @@ interface CarrinhoSimuladorProps {
   onUpdatePreco: (index: number, novoPreco: number) => void;
   pontuacaoPadrao: number;
   limitePerfil: number;
-  acabamentos: (VariavelAcabamento & { id: string })[];
   /** Mostra o seletor de modalidade (estoque/encomenda) — apenas em vendas. */
   mostrarModalidade?: boolean;
   /** Saldo disponível por produtoId (showroom + depósito). */
@@ -26,7 +24,6 @@ export function CarrinhoSimulador({
   onUpdatePreco,
   pontuacaoPadrao,
   limitePerfil,
-  acabamentos,
   mostrarModalidade,
   disponibilidade,
   onUpdateModalidade,
@@ -73,11 +70,6 @@ export function CarrinhoSimulador({
   // Validar travas
   const validacao = validarTrvasdaNegociacao(simulacao.pontuacaoMedia, limitePerfil);
 
-  // Buscar nome do acabamento
-  const getNomeAcabamento = (id: string) => {
-    return acabamentos.find((a) => a.id === id)?.nomeDaOpcao || 'N/A';
-  };
-
   return (
     <div className="space-y-6">
       {/* Carrinho */}
@@ -109,7 +101,6 @@ export function CarrinhoSimulador({
                     )}
                     <div className="flex-1">
                       <p className="font-medium text-foreground text-sm">{item.produto.nome}</p>
-                      <p className="text-xs text-muted-foreground">{getNomeAcabamento(item.acabamentoEscolhido)}</p>
                     </div>
                     <button
                       onClick={() => onRemoveItem(idx)}

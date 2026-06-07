@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase/config';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { useAuth } from '@/lib/hooks';
 import { AlertCircle, Save } from 'lucide-react';
 
@@ -41,7 +41,8 @@ export default function PrecificacaoPage() {
     setSaving(true);
     try {
       const docRef = doc(db, 'empresa', 'config');
-      await updateDoc(docRef, config);
+      // setDoc com merge cria o documento se ainda não existir (evita erro do updateDoc).
+      await setDoc(docRef, config, { merge: true });
       alert('Configurações salvas com sucesso!');
     } catch (err) {
       console.error('Erro ao salvar:', err);

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { db } from '@/lib/firebase/config';
 import { doc, getDoc, getDocs, collection } from 'firebase/firestore';
-import { Atendimento, Cliente, Produto, VariavelAcabamento } from '@/types';
+import { Atendimento, Cliente, Produto } from '@/types';
 import { Loader2, MessageCircle, Download, AlertCircle } from 'lucide-react';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import { OrcamentoPDF } from '@/lib/utils/gerador-pdf';
@@ -20,7 +20,6 @@ export default function OrcamentoPublicoPage({ params }: PageProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [produtos, setProdutos] = useState<(Produto & { id: string })[]>([]);
-  const [acabamentos, setAcabamentos] = useState<(VariavelAcabamento & { id: string })[]>([]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -55,15 +54,9 @@ export default function OrcamentoPublicoPage({ params }: PageProps) {
           }
         }
 
-        // Carregar produtos e acabamentos (para nomes e geração de PDF)
-        const [produtosSnap, acabamentosSnap] = await Promise.all([
-          getDocs(collection(db, 'produtos')),
-          getDocs(collection(db, 'variaveis_acabamento')),
-        ]);
+        // Carregar produtos (para nomes e geração de PDF)
+        const produtosSnap = await getDocs(collection(db, 'produtos'));
         setProdutos(produtosSnap.docs.map((d) => ({ ...(d.data() as Produto), id: d.id })));
-        setAcabamentos(
-          acabamentosSnap.docs.map((d) => ({ ...(d.data() as VariavelAcabamento), id: d.id }))
-        );
 
         setLoading(false);
       } catch (err) {
@@ -105,9 +98,6 @@ export default function OrcamentoPublicoPage({ params }: PageProps) {
     );
   }
 
-  const getNomeAcabamento = (id: string) => {
-    return acabamentos.find((a) => a.id === id)?.nomeDaOpcao || 'N/A';
-  };
 
   // Dados do cliente: usa o documento (se acessível) ou os campos denormalizados.
   const clienteNome = cliente?.nome || orcamento.clienteNome || '';
@@ -165,9 +155,6 @@ export default function OrcamentoPublicoPage({ params }: PageProps) {
                     )}
                     <div className="flex-1">
                       <h3 className="font-semibold text-foreground text-lg">{item.nome}</h3>
-                      <p className="text-sm text-muted-foreground mb-3">
-                        {getNomeAcabamento(item.acabamentoEscolhido)}
-                      </p>
                       <div className="grid grid-cols-3 gap-4 text-sm">
                         <div>
                           <span className="text-muted-foreground">Quantidade:</span>
@@ -248,7 +235,6 @@ export default function OrcamentoPublicoPage({ params }: PageProps) {
                     <OrcamentoPDF
                       atendimento={orcamento}
                       produtos={produtos}
-                      acabamentos={acabamentos}
                       nomeEmpresa="Mali Mobile"
                     />
                   }

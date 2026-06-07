@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { useCollection, useAddDocument, useUpdateDocument, useDeleteDocument, useStorageUpload } from '@/lib/hooks';
-import { Produto, Categoria, Fornecedor, VariavelAcabamento } from '@/types';
+import { Produto, Categoria, Fornecedor } from '@/types';
 import { Modal } from '@/components/ui/Modal';
 import { Table } from '@/components/ui/Table';
 import { Plus, Edit2, Trash2, X, Upload, ChevronDown } from 'lucide-react';
@@ -11,7 +11,6 @@ export default function ProdutosPage() {
   const { data: produtos, loading: produtosLoading } = useCollection<Produto>('produtos');
   const { data: categorias } = useCollection<Categoria>('categorias');
   const { data: fornecedores } = useCollection<Fornecedor>('fornecedores');
-  const { data: acabamentos } = useCollection<VariavelAcabamento>('variaveis_acabamento');
 
   const { add: addProduto } = useAddDocument('produtos');
   const { update: updateProduto } = useUpdateDocument('produtos');
@@ -29,7 +28,6 @@ export default function ProdutosPage() {
     sku: '',
     categoriaId: '',
     fornecedorId: '',
-    acabamentosDisponiveis: [] as string[],
     fotoPrincipal: '',
     custoProduto: 0,
     icms: 0,
@@ -97,7 +95,6 @@ export default function ProdutosPage() {
       sku: '',
       categoriaId: '',
       fornecedorId: '',
-      acabamentosDisponiveis: [],
       fotoPrincipal: '',
       custoProduto: 0,
       icms: 0,
@@ -119,7 +116,6 @@ export default function ProdutosPage() {
       sku: produto.sku,
       categoriaId: produto.categoriaId,
       fornecedorId: produto.fornecedorId,
-      acabamentosDisponiveis: produto.acabamentosDisponiveis,
       fotoPrincipal: produto.fotoPrincipal,
       custoProduto: produto.custoProduto,
       icms: produto.icms,
@@ -269,36 +265,6 @@ export default function ProdutosPage() {
                   ))}
                 </select>
               </div>
-            </div>
-          </div>
-
-          {/* Acabamentos */}
-          <div className="space-y-4">
-            <h3 className="font-semibold text-foreground">Acabamentos Disponíveis</h3>
-            <div className="grid grid-cols-3 gap-2 p-3 bg-background rounded-md border border-border max-h-32 overflow-y-auto">
-              {acabamentos.map(acabamento => (
-                <label key={acabamento.id} className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={formData.acabamentosDisponiveis.includes(acabamento.id)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setFormData({
-                          ...formData,
-                          acabamentosDisponiveis: [...formData.acabamentosDisponiveis, acabamento.id]
-                        });
-                      } else {
-                        setFormData({
-                          ...formData,
-                          acabamentosDisponiveis: formData.acabamentosDisponiveis.filter(id => id !== acabamento.id)
-                        });
-                      }
-                    }}
-                    className="rounded"
-                  />
-                  <span className="text-sm text-foreground">{acabamento.nomeDaOpcao}</span>
-                </label>
-              ))}
             </div>
           </div>
 
