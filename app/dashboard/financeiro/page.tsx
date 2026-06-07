@@ -5,9 +5,10 @@ import { useCollection } from '@/lib/hooks';
 import { Table } from '@/components/ui/Table';
 import { Modal } from '@/components/ui/Modal';
 import { formatBRL, formatData } from '@/lib/utils/format';
-import { ContaPagar, ContaReceber, ContaBancaria, FormaPagamento } from '@/types';
-import { DollarSign, TrendingUp, TrendingDown, CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
+import { ContaPagar, ContaReceber, ContaBancaria, FormaPagamento, CategoriaFinanceira } from '@/types';
+import { DollarSign, TrendingUp, TrendingDown, CheckCircle2, Loader2, AlertCircle, Plus } from 'lucide-react';
 import { baixarParcela, reabrirParcela } from '@/lib/financeiro/baixa';
+import { lancarContaManual } from '@/lib/financeiro/lancamento';
 import { useAuth } from '@/lib/hooks';
 
 type Tipo = 'receber' | 'pagar';
@@ -37,6 +38,15 @@ interface FormBaixa {
   observacoes: string;
 }
 
+interface FormLancamento {
+  tipo: Tipo;
+  descricao: string;
+  categoriaId: string;
+  valor: number;
+  vencimento: Date;
+  contraparteNome: string;
+}
+
 const FORMAS_PAGAMENTO: { value: FormaPagamento; label: string }[] = [
   { value: 'dinheiro', label: 'Dinheiro' },
   { value: 'pix', label: 'PIX' },
@@ -61,12 +71,26 @@ export default function FinanceiroPage() {
   const { data: contasReceber, loading: loadingR } = useCollection<ContaReceber>('contas_receber');
   const { data: contasPagar, loading: loadingP } = useCollection<ContaPagar>('contas_pagar');
   const { data: contas, loading: loadingContas } = useCollection<ContaBancaria>('contas_bancarias');
+  const { data: categorias } = useCollection<CategoriaFinanceira>('categorias_financeiras');
 
   const [filtro, setFiltro] = useState<Tipo | 'todas'>('todas');
   const [modalBaixaOpen, setModalBaixaOpen] = useState(false);
   const [linhaParaBaixar, setLinhaParaBaixar] = useState<LinhaConta | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState('');
+
+  // Lançamento manual
+  const [modalLancOpen, setModalLancOpen] = useState(false);
+  const [salvandoLanc, setSalvandoLanc] = useState(false);
+  const [erroLanc, setErroLanc] = useState('');
+  const [formLanc, setFormLanc] = useState<FormLancamento>({
+    tipo: 'pagar',
+    descricao: '',
+    categoriaId: '',
+    valor: 0,
+    vencimento: new Date(),
+    contraparteNome: '',
+  });
 
   const [formBaixa, setFormBaixa] = useState<FormBaixa>({
     dataRecebimento: new Date(),
@@ -172,6 +196,56 @@ export default function FinanceiroPage() {
     }
   };
 
+  const abrirLancamento = () => {
+    setFormLanc({
+      tipo: 'pagar',
+      descricao: '',
+      categoriaId: '',
+      valor: 0,
+      vencimento: new Date(),
+      contraparteNome: '',
+    });
+    setErroLanc('');
+    setModalLancOpen(true);
+  };
+
+  const handleSalvarLancamento = async () => {
+    setErroLanc('');
+    if (!formLanc.descricao.trim()) {
+      setErroLanc('Informe a descrição.');
+      return;
+    }
+    if (formLanc.valor <= 0) {
+      setErroLanc('Informe um valor maior que zero.');
+      return;
+    }
+    setSalvandoLanc(true);
+    try {
+      await lancarContaManual({
+        tipo: formLanc.tipo,
+        descricao: formLanc.descricao.trim(),
+        categoriaId: formLanc.categoriaId,
+        valorTotal: formLanc.valor,
+        dataCompetencia: formLanc.vencimento,
+        parcelas: [
+          { numero: 1, valor: formLanc.valor, vencimento: formLanc.vencimento, pago: false },
+        ],
+        contraparteNome: formLanc.contraparteNome || undefined,
+      });
+      setModalLancOpen(false);
+    } catch (err) {
+      setErroLanc(err instanceof Error ? err.message : 'Erro ao lançar');
+    } finally {
+      setSalvandoLanc(false);
+    }
+  };
+
+  // Categorias filtradas pelo tipo do lançamento (receita/despesa).
+  const categoriasDoTipo = useMemo(() => {
+    const alvo = formLanc.tipo === 'receber' ? 'receita' : 'despesa';
+    return categorias.filter((c) => c.tipo === alvo && c.ativo !== false);
+  }, [categorias, formLanc.tipo]);
+
   const columns = [
     {
       header: 'Descrição',
@@ -267,9 +341,18 @@ export default function FinanceiroPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Financeiro</h1>
-        <p className="text-muted-foreground mt-2">Contas a receber e a pagar</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Financeiro</h1>
+          <p className="text-muted-foreground mt-2">Recebimentos, pagamentos e lançamentos</p>
+        </div>
+        <button
+          onClick={abrirLancamento}
+          className="flex items-center gap-2 px-4 py-2 bg-mali-primary text-mali-secondary font-semibold rounded-md hover:opacity-90"
+        >
+          <Plus className="w-4 h-4" />
+          Novo Lançamento
+        </button>
       </div>
 
       {/* KPIs */}
@@ -579,6 +662,126 @@ export default function FinanceiroPage() {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Modal de Lançamento Manual */}
+      <Modal
+        isOpen={modalLancOpen}
+        title="Novo Lançamento"
+        onClose={() => setModalLancOpen(false)}
+        size="lg"
+      >
+        <div className="space-y-4">
+          {/* Tipo */}
+          <div className="flex gap-2">
+            {[
+              { value: 'pagar', label: '📤 Despesa (a pagar)' },
+              { value: 'receber', label: '📥 Receita (a receber)' },
+            ].map((t) => (
+              <button
+                key={t.value}
+                onClick={() => setFormLanc({ ...formLanc, tipo: t.value as Tipo, categoriaId: '' })}
+                className={`flex-1 px-4 py-2 rounded-md font-medium transition-colors ${
+                  formLanc.tipo === t.value
+                    ? 'bg-mali-primary text-mali-secondary'
+                    : 'bg-card border border-border text-foreground hover:bg-background'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-foreground mb-1 block">Descrição</label>
+            <input
+              type="text"
+              value={formLanc.descricao}
+              onChange={(e) => setFormLanc({ ...formLanc, descricao: e.target.value })}
+              className="w-full px-3 py-2 bg-input border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-mali-primary"
+              placeholder="Ex: Aluguel de junho, Conta de energia"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm font-medium text-foreground mb-1 block">Categoria</label>
+              <select
+                value={formLanc.categoriaId}
+                onChange={(e) => setFormLanc({ ...formLanc, categoriaId: e.target.value })}
+                className="w-full px-3 py-2 bg-input border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-mali-primary"
+              >
+                <option value="">Sem categoria</option>
+                {categoriasDoTipo.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.nome}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-foreground mb-1 block">Valor</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={formLanc.valor}
+                onChange={(e) => setFormLanc({ ...formLanc, valor: parseFloat(e.target.value) || 0 })}
+                className="w-full px-3 py-2 bg-input border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-mali-primary"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm font-medium text-foreground mb-1 block">Vencimento</label>
+              <input
+                type="date"
+                value={formLanc.vencimento.toISOString().split('T')[0]}
+                onChange={(e) => setFormLanc({ ...formLanc, vencimento: new Date(e.target.value) })}
+                className="w-full px-3 py-2 bg-input border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-mali-primary"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-foreground mb-1 block">
+                {formLanc.tipo === 'receber' ? 'Cliente/Pagador' : 'Fornecedor/Beneficiário'}
+              </label>
+              <input
+                type="text"
+                value={formLanc.contraparteNome}
+                onChange={(e) => setFormLanc({ ...formLanc, contraparteNome: e.target.value })}
+                className="w-full px-3 py-2 bg-input border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-mali-primary"
+                placeholder="Opcional"
+              />
+            </div>
+          </div>
+
+          {erroLanc && (
+            <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg flex gap-2">
+              <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-destructive">{erroLanc}</p>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2 pt-4 border-t border-border">
+            <button
+              onClick={() => setModalLancOpen(false)}
+              className="px-4 py-2 rounded-md border border-border text-foreground hover:bg-background"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleSalvarLancamento}
+              disabled={salvandoLanc}
+              className="flex items-center gap-2 px-4 py-2 bg-mali-primary text-mali-secondary font-semibold rounded-md hover:opacity-90 disabled:opacity-50"
+            >
+              {salvandoLanc && <Loader2 className="w-4 h-4 animate-spin" />}
+              Lançar
+            </button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

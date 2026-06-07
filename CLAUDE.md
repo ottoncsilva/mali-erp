@@ -289,7 +289,47 @@ CMV unitário = custoUnitário + (freteRateado + ICMS + IPI) / qtd
 Ao registrar a NF, os componentes de custo do produto (`custoProduto`, `icms`, `ipi`, `frete`)
 são atualizados por unidade, mantendo compatibilidade com `calcularCMV`.
 
+## 💰 Módulo Financeiro
+
+### Coleções Firestore
+- `contas_receber` / `contas_pagar` — títulos com `parcelas[]` (ParcelaConta).
+  Cada parcela guarda competência (valor/vencimento) e dados de baixa (regime de caixa).
+- `contas_bancarias` — caixa/banco/carteira com `saldoInicial` e `saldoAtual` (denormalizado).
+- `categorias_financeiras` — plano de contas (semeado de `CATEGORIAS_PADRAO`), com `grupoDRE`.
+- `movimentos_caixa` — trilha IMUTÁVEL de entradas/saídas reais (base do regime de caixa).
+
+### Lógica central (`lib/financeiro/`)
+- `baixa.ts` — `baixarParcela` (ATÔMICA: parcela + saldoAtual + movimento de caixa) e
+  `reabrirParcela` (estorno via movimento de REVERSÃO, mantém imutabilidade).
+- `lancamento.ts` — `lancarContaManual` (despesa/receita avulsa com categoria).
+- `dre.ts` — `calcularDRECaixa` / `calcularDRECompetencia` (DRE por grupo), `intervaloPeriodo`.
+- `categorias.ts` — `CATEGORIAS_PADRAO`, `seedCategoriasSeVazio`, labels.
+
+### Regime de Apuração (DRE)
+- **Caixa**: usa `movimentos_caixa` (dinheiro que entrou/saiu). Toggle na tela `/dashboard/apuracao`.
+- **Competência**: usa as parcelas das contas (fato gerador), independente do pagamento.
+
+### Atomicidade (consistência transacional)
+Operações multi-passo rodam em UMA `runTransaction` (sem dados órfãos em falha):
+- **Venda** (`lib/vendas/finalizarVenda.ts`): atendimento + baixa estoque + movimentações +
+  pedidos de compra + conta a receber + contas a pagar (comissões).
+- **Nota fiscal** (`lib/estoque/compras.ts`): NF + entrada estoque + CMV + baixa pedido + conta a pagar.
+- **Baixa de parcela** (`lib/financeiro/baixa.ts`): parcela + saldo bancário + movimento de caixa.
+
+### Menu Financeiro
+- **Recebimentos** (`/dashboard/financeiro`) — contas a receber/pagar + lançamento manual.
+- **Contas Bancárias**, **Categorias Financeiras**, **Relatórios**, **DRE**.
+
+## 🚚 Módulo de Operações
+
+### Coleções Firestore
+- `entregas` — agendamento/rastreamento (status, turno, montador, vínculo com venda, comprovação).
+- `assistencia_tecnica` — chamados de pós-venda (status, técnico, peça, vínculo com venda).
+
+Ambas com CRUD real em Firestore e vínculo opcional ao atendimento de origem.
+
 ---
 
-**Última atualização**: 2026-06-07 - Módulos de Estoque e Compras, menu Vendas unificado,
-venda com baixa de estoque / pedido sob encomenda, rateio de frete e composição de CMV ✅
+**Última atualização**: 2026-06-07 - Módulo Financeiro completo (DRE real caixa/competência,
+lançamentos manuais, baixa atômica com saldo), operações reais (entregas/assistência em Firestore),
+atomicidade total em venda e nota fiscal, menu "Recebimentos", depósitos em página própria ✅

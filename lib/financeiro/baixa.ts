@@ -4,9 +4,11 @@ import {
   updateDoc,
   addDoc,
   serverTimestamp,
+  runTransaction,
+  getDoc,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
-import { ContaReceber, ContaPagar, ParcelaConta, MovimentoCaixa } from '@/types';
+import { ContaReceber, ContaPagar, ParcelaConta, MovimentoCaixa, ContaBancaria } from '@/types';
 import { FormaPagamento } from '@/types';
 
 export interface DadosBaixa {
@@ -27,96 +29,117 @@ export interface DadosBaixa {
 
 /**
  * Baixa uma parcela de uma conta (a receber ou a pagar).
- * Atualiza o status da parcela e da conta, e cria um movimento de caixa.
+ * Operação ATÔMICA: atualiza parcela, conta, saldo bancário e cria movimento de caixa.
  *
- * Fluxo:
+ * Fluxo transacional:
  * 1. Atualiza a parcela: pago=true, pagoEm=data, juros/multa/desconto, formaPagamento
  * 2. Recalcula o status da conta (aberto/parcial/pago)
- * 3. Cria um movimento de caixa (regime de caixa)
+ * 3. Atualiza saldoAtual da conta bancária
+ * 4. Cria um movimento de caixa (regime de caixa)
+ * 5. Atualiza referência do movimento na parcela
  *
  * Retorna o ID do movimento de caixa criado.
  */
 export async function baixarParcela(dados: DadosBaixa): Promise<string> {
   const { contaId, tipo, parcelaNumero, dataRecebimento, ...dadosPagamento } = dados;
-
-  // 1. Buscar a conta existente
   const colecao = tipo === 'receber' ? 'contas_receber' : 'contas_pagar';
   const contaRef = doc(db, colecao, contaId);
+  const contaBancariaRef = doc(db, 'contas_bancarias', dadosPagamento.contaBancariaId);
 
-  // Pegar dados atuais (via getDoc — o Firebase não retorna no updateDoc)
-  const { getDoc } = await import('firebase/firestore');
-  const snap = await getDoc(contaRef);
-  if (!snap.exists()) {
-    throw new Error(`Conta ${colecao}/${contaId} não encontrada`);
-  }
+  return runTransaction(db, async (transaction) => {
+    // 1. Ler dados atuais dentro da transação
+    const contaSnap = await transaction.get(contaRef);
+    if (!contaSnap.exists()) {
+      throw new Error(`Conta ${colecao}/${contaId} não encontrada`);
+    }
 
-  const conta = snap.data() as ContaReceber | ContaPagar;
-  const parcelaIdx = conta.parcelas.findIndex((p) => p.numero === parcelaNumero);
-  if (parcelaIdx === -1) {
-    throw new Error(`Parcela ${parcelaNumero} não encontrada`);
-  }
+    const conta = contaSnap.data() as ContaReceber | ContaPagar;
+    const parcelaIdx = conta.parcelas.findIndex((p) => p.numero === parcelaNumero);
+    if (parcelaIdx === -1) {
+      throw new Error(`Parcela ${parcelaNumero} não encontrada`);
+    }
 
-  // 2. Atualizar a parcela
-  const novasParcelas = conta.parcelas.map((p, idx) =>
-    idx === parcelaIdx
-      ? {
-          ...p,
-          pago: true,
-          pagoEm: dataRecebimento,
-          valorPago: dadosPagamento.valorPago,
-          juros: dadosPagamento.juros || 0,
-          multa: dadosPagamento.multa || 0,
-          desconto: dadosPagamento.desconto || 0,
-          contaBancariaId: dadosPagamento.contaBancariaId,
-          formaPagamento: dadosPagamento.formaPagamento,
-        }
-      : p
-  );
+    const contaBancariaSnap = await transaction.get(contaBancariaRef);
+    if (!contaBancariaSnap.exists()) {
+      throw new Error(`Conta bancária não encontrada`);
+    }
 
-  // 3. Recalcular status
-  const todasPagas = novasParcelas.every((p) => p.pago);
-  const algumaPaga = novasParcelas.some((p) => p.pago);
-  const novoStatus = todasPagas ? 'pago' : algumaPaga ? 'parcial' : 'aberto';
+    const contaBancaria = contaBancariaSnap.data() as ContaBancaria;
 
-  // 4. Atualizar a conta
-  await updateDoc(contaRef, {
-    parcelas: novasParcelas,
-    status: novoStatus,
-    atualizadoEm: serverTimestamp(),
+    // 2. Calcular novo estado da parcela
+    const novasParcelas = conta.parcelas.map((p, idx) =>
+      idx === parcelaIdx
+        ? {
+            ...p,
+            pago: true,
+            pagoEm: dataRecebimento,
+            valorPago: dadosPagamento.valorPago,
+            juros: dadosPagamento.juros || 0,
+            multa: dadosPagamento.multa || 0,
+            desconto: dadosPagamento.desconto || 0,
+            contaBancariaId: dadosPagamento.contaBancariaId,
+            formaPagamento: dadosPagamento.formaPagamento,
+          }
+        : p
+    );
+
+    // 3. Recalcular status
+    const todasPagas = novasParcelas.every((p) => p.pago);
+    const algumaPaga = novasParcelas.some((p) => p.pago);
+    const novoStatus = todasPagas ? 'pago' : algumaPaga ? 'parcial' : 'aberto';
+
+    // 4. Atualizar saldo bancário (entrada para receber, saida para pagar)
+    const isReceber = tipo === 'receber';
+    const novoSaldo = isReceber
+      ? contaBancaria.saldoAtual + dadosPagamento.valorPago
+      : contaBancaria.saldoAtual - dadosPagamento.valorPago;
+
+    // 5. Criar movimento de caixa
+    const movimento: Omit<MovimentoCaixa, 'id'> = {
+      contaBancariaId: dadosPagamento.contaBancariaId,
+      tipo: isReceber ? 'entrada' : 'saida',
+      valor: dadosPagamento.valorPago,
+      data: dataRecebimento,
+      categoriaId: conta.categoriaId,
+      descricao: `Baixa: ${conta.descricao || `${colecao}/${contaId}`}`,
+      origemTipo: tipo === 'receber' ? 'conta_receber' : 'conta_pagar',
+      origemId: contaId,
+      parcelaNumero,
+      formaPagamento: dadosPagamento.formaPagamento,
+      registradoPorId: dadosPagamento.registradoPorId,
+      registradoPorNome: dadosPagamento.registradoPorNome,
+      criadoEm: dataRecebimento,
+    };
+
+    const movRef = doc(collection(db, 'movimentos_caixa'));
+
+    // 6. Atualizar parcela com referência ao movimento
+    const parcelasComMovimento = novasParcelas.map((p, idx) =>
+      idx === parcelaIdx ? { ...p, movimentoId: movRef.id } : p
+    );
+
+    // 7. Executar transação: atualizar conta + conta bancária + criar movimento
+    transaction.update(contaRef, {
+      parcelas: parcelasComMovimento,
+      status: novoStatus,
+      atualizadoEm: new Date(),
+    });
+
+    transaction.update(contaBancariaRef, {
+      saldoAtual: novoSaldo,
+      atualizadoEm: new Date(),
+    });
+
+    transaction.set(movRef, movimento);
+
+    return movRef.id;
   });
-
-  // 5. Criar movimento de caixa (regime de caixa)
-  const movimento: Omit<MovimentoCaixa, 'id'> = {
-    contaBancariaId: dadosPagamento.contaBancariaId,
-    tipo: 'entrada', // entrada ou saida? Depende do tipo de conta
-    valor: dadosPagamento.valorPago,
-    data: dataRecebimento,
-    categoriaId: conta.categoriaId,
-    descricao: `Baixa: ${conta.descricao || `${colecao}/${contaId}`}`,
-    origemTipo: tipo === 'receber' ? 'conta_receber' : 'conta_pagar',
-    origemId: contaId,
-    parcelaNumero,
-    formaPagamento: dadosPagamento.formaPagamento,
-    registradoPorId: dadosPagamento.registradoPorId,
-    registradoPorNome: dadosPagamento.registradoPorNome,
-    criadoEm: dataRecebimento,
-  };
-
-  const movRef = await addDoc(collection(db, 'movimentos_caixa'), movimento);
-
-  // 6. Atualizar a referência do movimento na parcela (para rastreabilidade)
-  // Nota: pode fazer update adicional se quiser linkar
-  const parcelasComMovimento = novasParcelas.map((p, idx) =>
-    idx === parcelaIdx ? { ...p, movimentoId: movRef.id } : p
-  );
-  await updateDoc(contaRef, { parcelas: parcelasComMovimento });
-
-  return movRef.id;
 }
 
 /**
  * Reabre uma parcela (desfaz uma baixa).
- * Remove o movimento de caixa e limpa os dados de pagamento.
+ * Operação ATÔMICA: cria movimento de ESTORNO (reversal) e atualiza parcela + conta bancária.
+ * Mantém imutabilidade: não deleta movimento original, cria uma reversão.
  */
 export async function reabrirParcela(
   contaId: string,
@@ -126,55 +149,97 @@ export async function reabrirParcela(
   const colecao = tipo === 'receber' ? 'contas_receber' : 'contas_pagar';
   const contaRef = doc(db, colecao, contaId);
 
-  const { getDoc, deleteDoc } = await import('firebase/firestore');
-  const snap = await getDoc(contaRef);
-  if (!snap.exists()) {
-    throw new Error(`Conta ${colecao}/${contaId} não encontrada`);
-  }
-
-  const conta = snap.data() as ContaReceber | ContaPagar;
-  const parcelaIdx = conta.parcelas.findIndex((p) => p.numero === parcelaNumero);
-  if (parcelaIdx === -1) {
-    throw new Error(`Parcela ${parcelaNumero} não encontrada`);
-  }
-
-  const parcela = conta.parcelas[parcelaIdx];
-
-  // Deletar movimento de caixa se houver
-  if (parcela.movimentoId) {
-    try {
-      await deleteDoc(doc(db, 'movimentos_caixa', parcela.movimentoId));
-    } catch (err) {
-      console.warn(`Não foi possível deletar movimento ${parcela.movimentoId}:`, err);
+  return runTransaction(db, async (transaction) => {
+    // 1. Ler dados atuais
+    const contaSnap = await transaction.get(contaRef);
+    if (!contaSnap.exists()) {
+      throw new Error(`Conta ${colecao}/${contaId} não encontrada`);
     }
-  }
 
-  // Atualizar parcela: limpar dados de pagamento
-  const novasParcelas = conta.parcelas.map((p, idx) =>
-    idx === parcelaIdx
-      ? {
-          ...p,
-          pago: false,
-          pagoEm: undefined,
-          valorPago: undefined,
-          juros: undefined,
-          multa: undefined,
-          desconto: undefined,
-          contaBancariaId: undefined,
-          formaPagamento: undefined,
-          movimentoId: undefined,
-        }
-      : p
-  );
+    const conta = contaSnap.data() as ContaReceber | ContaPagar;
+    const parcelaIdx = conta.parcelas.findIndex((p) => p.numero === parcelaNumero);
+    if (parcelaIdx === -1) {
+      throw new Error(`Parcela ${parcelaNumero} não encontrada`);
+    }
 
-  // Recalcular status
-  const todasPagas = novasParcelas.every((p) => p.pago);
-  const algumaPaga = novasParcelas.some((p) => p.pago);
-  const novoStatus = todasPagas ? 'pago' : algumaPaga ? 'parcial' : 'aberto';
+    const parcela = conta.parcelas[parcelaIdx];
+    if (!parcela.pago) {
+      throw new Error(`Parcela ${parcelaNumero} não está paga`);
+    }
 
-  await updateDoc(contaRef, {
-    parcelas: novasParcelas,
-    status: novoStatus,
-    atualizadoEm: serverTimestamp(),
+    // 2. Se há movimento de caixa, ler a conta bancária para atualizar saldo
+    let contaBancariaRef: any = null;
+    if (parcela.contaBancariaId) {
+      contaBancariaRef = doc(db, 'contas_bancarias', parcela.contaBancariaId);
+      const contaBancariaSnap = await transaction.get(contaBancariaRef);
+      if (!contaBancariaSnap.exists()) {
+        throw new Error(`Conta bancária não encontrada`);
+      }
+    }
+
+    // 3. Limpar dados de pagamento da parcela
+    const novasParcelas = conta.parcelas.map((p, idx) =>
+      idx === parcelaIdx
+        ? {
+            ...p,
+            pago: false,
+            pagoEm: undefined,
+            valorPago: undefined,
+            juros: undefined,
+            multa: undefined,
+            desconto: undefined,
+            contaBancariaId: undefined,
+            formaPagamento: undefined,
+            movimentoId: undefined,
+          }
+        : p
+    );
+
+    // 4. Recalcular status
+    const todasPagas = novasParcelas.every((p) => p.pago);
+    const algumaPaga = novasParcelas.some((p) => p.pago);
+    const novoStatus = todasPagas ? 'pago' : algumaPaga ? 'parcial' : 'aberto';
+
+    // 5. Se há movimento, criar reversão (estorno)
+    if (parcela.movimentoId && parcela.contaBancariaId) {
+      const isReceber = tipo === 'receber';
+      const contaBancaria = (await transaction.get(contaBancariaRef)).data() as ContaBancaria;
+
+      // Reversão: inverte o tipo e valor
+      const movimentoReversal: Omit<MovimentoCaixa, 'id'> = {
+        contaBancariaId: parcela.contaBancariaId,
+        tipo: isReceber ? 'saida' : 'entrada', // Invertido
+        valor: parcela.valorPago || 0,
+        data: new Date(),
+        categoriaId: conta.categoriaId,
+        descricao: `Estorno de baixa: ${conta.descricao || `${colecao}/${contaId}`}`,
+        origemTipo: tipo === 'receber' ? 'conta_receber' : 'conta_pagar',
+        origemId: contaId,
+        parcelaNumero,
+        formaPagamento: parcela.formaPagamento,
+        registradoPorId: '',
+        registradoPorNome: 'Sistema',
+        criadoEm: new Date(),
+      };
+
+      // Atualizar saldo bancário (reverter operação original)
+      const novoSaldo = isReceber
+        ? contaBancaria.saldoAtual - (parcela.valorPago || 0)
+        : contaBancaria.saldoAtual + (parcela.valorPago || 0);
+
+      const movReversalRef = doc(collection(db, 'movimentos_caixa'));
+      transaction.set(movReversalRef, movimentoReversal);
+      transaction.update(contaBancariaRef, {
+        saldoAtual: novoSaldo,
+        atualizadoEm: new Date(),
+      });
+    }
+
+    // 6. Atualizar conta
+    transaction.update(contaRef, {
+      parcelas: novasParcelas,
+      status: novoStatus,
+      atualizadoEm: new Date(),
+    });
   });
 }

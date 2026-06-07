@@ -83,17 +83,21 @@ service cloud.firestore {
       allow write: if isGestor();
     }
 
-    // FINANCEIRO — leitura autenticada.
-    // - Criação liberada para autenticados: o fechamento de venda no PDV gera
-    //   contas a receber/pagar (comissão), e quem fecha pode ser vendedor.
-    // - Edição/baixa de parcelas (marcar pago): apenas perfis financeiros.
+    // FINANCEIRO — leitura autenticada, escrita restrita.
+    // - Contas a receber: criadas pelo PDV (vendedor fecha venda)
+    //   ou pelo sistema (transferência de parcelas).
+    //   Update/delete (ajuste de parcelas): apenas podeFinanceiro().
+    // - Contas a pagar: criadas no PDV (comissão) ou no NF (fornecedor).
+    //   Update/delete: apenas podeFinanceiro().
     match /contas_receber/{id} {
-      allow read, create: if isAuth();
+      allow read: if isAuth();
+      allow create: if isAuth(); // PDV fecha venda / sistema cria parcelamento
       allow update, delete: if podeFinanceiro();
     }
 
     match /contas_pagar/{id} {
-      allow read, create: if isAuth();
+      allow read: if isAuth();
+      allow create: if isAuth(); // PDV comissão / NF fornecedor
       allow update, delete: if podeFinanceiro();
     }
 
@@ -112,14 +116,21 @@ service cloud.firestore {
     }
 
     // MOVIMENTOS DE CAIXA — trilha imutável de entradas/saídas reais.
-    // Leitura por autenticado; criação por qualquer um (ao baixar uma conta).
-    // Edição/exclusão bloqueadas para preservar auditoria.
+    // Leitura por autenticado; criação apenas por perfis financeiros (baixa de
+    // parcelas roda em transação client-side). Edição/exclusão bloqueadas para
+    // preservar a auditoria — estornos são feitos com NOVO movimento de reversão.
     match /movimentos_caixa/{id} {
       allow read: if isAuth();
-      allow create: if isAuth();
+      allow create: if podeFinanceiro();
       allow update, delete: if false;
     }
 
+    // ENTREGAS & MONTAGEM
+    match /entregas/{id} {
+      allow read, write: if isAuth();
+    }
+
+    // ASSISTÊNCIA TÉCNICA
     match /assistencia_tecnica/{id} {
       allow read, write: if isAuth();
     }

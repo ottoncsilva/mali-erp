@@ -357,20 +357,52 @@ export interface Atendimento {
   atualizadoEm: Date;
 }
 
-// Assistência Técnica
+// Entrega & Montagem (coleção `entregas`)
+export type StatusEntrega = 'agendada' | 'em_rota' | 'entregue' | 'montada' | 'problema';
+
+export interface Entrega {
+  id: string;
+  atendimentoId?: string; // venda de origem (opcional p/ avulsa)
+  clienteId?: string;
+  clienteNome: string;
+  clienteTelefone?: string;
+  dataAgendada: Date;
+  turno: 'manha' | 'tarde';
+  status: StatusEntrega;
+  enderecoEntrega: string;
+  observacoes?: string;
+  montador?: string;
+  // Comprovação de entrega
+  fotoComprovante?: string;
+  assinaturaURL?: string;
+  entregueEm?: Date;
+  criadoEm?: Date;
+  atualizadoEm?: Date;
+}
+
+// Assistência Técnica (coleção `assistencia_tecnica`)
+export type StatusChamado = 'aberto' | 'aguardando_peca' | 'visita_agendada' | 'resolvido';
+
 export interface AssistenciaTecnica {
   id: string;
-  atendimentoId: string;
-  clienteId: string;
+  atendimentoId?: string;
+  clienteId?: string;
+  clienteNome: string;
+  clienteTelefone?: string;
   problemaRelatado: string;
-  status: 'aberto' | 'aguardando_peca' | 'visita_agendada' | 'resolvido';
+  status: StatusChamado;
   solicitacaoPeca?: {
-    fornecedorId: string;
+    fornecedorId?: string;
     nomePeca: string;
     quantidade: number;
   };
+  tecnico?: string;
+  dataAbertura?: Date;
   dataVisita?: Date;
   resolvidoEm?: Date;
+  observacoes?: string;
+  criadoEm?: Date;
+  atualizadoEm?: Date;
 }
 
 // ===================== FINANCEIRO =====================
