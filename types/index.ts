@@ -29,22 +29,62 @@ export interface CondicaoPagamentoConfig {
   ordem: number;
 }
 
-// Usuários
+// Cadastro completo da empresa (doc `empresa/dados`).
+// Separado de `empresa/config` (precificação) para não misturar responsabilidades.
+export interface DadosEmpresa {
+  razaoSocial: string;
+  nomeFantasia: string;
+  cnpj: string;
+  inscricaoEstadual?: string;
+  telefone: string;
+  whatsapp?: string;
+  email: string;
+  site?: string;
+  // Endereço estruturado
+  cep?: string;
+  rua?: string;
+  numero?: string;
+  complemento?: string;
+  bairro?: string;
+  cidade?: string;
+  uf?: string;
+  // Identidade visual
+  logoURL?: string;
+}
+
+// Cargo (perfil de acesso) — dinâmico, editável em Configurações › Cargos.
+// O id do documento é a "chave" do cargo, gravada em `usuario.perfil`.
+export interface Cargo {
+  id: string;
+  nome: string;
+  permissoes: string[]; // lista de Permissao
+  limitePontuacao: number; // trava mínima de pontuação (0 = ilimitado)
+  // Comissão por cargo (Configurações › Comissões)
+  comissaoAtiva: boolean;
+  comissaoPct: number; // % padrão do cargo
+  baseComissao: 'vista' | 'proposta' | 'margem';
+  modoComissao: 'vendedor' | 'override';
+  sistema?: boolean; // cargos padrão não podem ser excluídos
+  ativo?: boolean;
+}
+
+// Usuários / Colaboradores
 export interface Usuario {
   uid: string;
   nome: string;
   email: string;
-  perfil:
-    | 'admin'
-    | 'gerencia'
-    | 'vendedor'
-    | 'comprador'
-    | 'financeiro'
-    | 'estoquista'
-    | 'sem_acesso';
+  perfil: string; // id do cargo (dinâmico) ou 'sem_acesso'
   ativo: boolean;
   avatarURL?: string;
+  // Comissão: override do % padrão do cargo (undefined = usa o do cargo)
   comissaoPct?: number;
+  // Dados cadastrais do colaborador
+  telefone?: string;
+  cpf?: string;
+  cargoTexto?: string; // cargo/função descritiva livre (RH)
+  dataAdmissao?: any;
+  pix?: string;
+  observacoes?: string;
 }
 
 // Categorias

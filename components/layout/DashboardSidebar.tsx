@@ -1,6 +1,6 @@
 'use client';
 
-import { useAuth } from '@/lib/hooks';
+import { useAuth, useEmpresa } from '@/lib/hooks';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase/config';
 import Link from 'next/link';
@@ -25,10 +25,13 @@ import {
   Boxes,
   ClipboardList,
   Warehouse,
+  ShieldCheck,
+  Percent,
+  Building2,
 } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { DepositosModal } from '@/components/modules/estoque/DepositosModal';
-import { Permissao, can, PERFIL_LABEL, Perfil } from '@/lib/auth';
+import { Permissao } from '@/lib/auth';
 
 // Icon component para Briefcase
 const Briefcase = (props: any) => (
@@ -199,16 +202,28 @@ const navItems: NavItem[] = [
         permissao: 'config.precificacao',
       },
       {
-        label: 'Dados da Empresa',
-        href: '/dashboard/configuracoes',
-        icon: <Settings className="w-4 h-4" />,
-        permissao: 'config.empresa',
-      },
-      {
-        label: 'Usuários',
+        label: 'Colaboradores',
         href: '/dashboard/configuracoes/usuarios',
         icon: <Users className="w-4 h-4" />,
         permissao: 'usuarios.gerir',
+      },
+      {
+        label: 'Cargos & Permissões',
+        href: '/dashboard/configuracoes/cargos',
+        icon: <ShieldCheck className="w-4 h-4" />,
+        permissao: 'usuarios.gerir',
+      },
+      {
+        label: 'Comissões',
+        href: '/dashboard/configuracoes/comissoes',
+        icon: <Percent className="w-4 h-4" />,
+        permissao: 'usuarios.gerir',
+      },
+      {
+        label: 'Dados da Empresa',
+        href: '/dashboard/configuracoes/empresa',
+        icon: <Building2 className="w-4 h-4" />,
+        permissao: 'config.empresa',
       },
     ],
   },
@@ -220,7 +235,8 @@ interface DashboardSidebarProps {
 }
 
 export default function DashboardSidebar({ isOpen, onToggle }: DashboardSidebarProps) {
-  const { userProfile } = useAuth();
+  const { userProfile, cargoNome, permissoes } = useAuth();
+  const { empresa } = useEmpresa();
   const router = useRouter();
   const pathname = usePathname();
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
@@ -231,14 +247,9 @@ export default function DashboardSidebar({ isOpen, onToggle }: DashboardSidebarP
     router.push('/login');
   };
 
+  // Acordeão: abrir um menu fecha os demais.
   const toggleExpanded = (label: string) => {
-    const newExpanded = new Set(expandedItems);
-    if (newExpanded.has(label)) {
-      newExpanded.delete(label);
-    } else {
-      newExpanded.add(label);
-    }
-    setExpandedItems(newExpanded);
+    setExpandedItems((prev) => (prev.has(label) ? new Set() : new Set([label])));
   };
 
   // Filtra itens por permissão, recursivamente. Itens-pai sem permissão própria
@@ -250,7 +261,7 @@ export default function DashboardSidebar({ isOpen, onToggle }: DashboardSidebarP
         children: item.children ? filterItems(item.children) : undefined,
       }))
       .filter((item) => {
-        if (item.permissao && !can(userProfile?.perfil, item.permissao)) return false;
+        if (item.permissao && !permissoes.includes(item.permissao)) return false;
         if (item.children && item.children.length === 0) return false;
         return true;
       });
@@ -258,7 +269,8 @@ export default function DashboardSidebar({ isOpen, onToggle }: DashboardSidebarP
 
   const filteredItems = useMemo(
     () => filterItems(navItems),
-    [userProfile?.perfil]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [permissoes]
   );
 
   // Detectar item ativo em árvore
@@ -362,13 +374,27 @@ export default function DashboardSidebar({ isOpen, onToggle }: DashboardSidebarP
         {/* Logo */}
         <div className="p-4 border-b border-border">
           <Link href="/dashboard" className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-mali-primary to-mali-primary-dark rounded-lg flex items-center justify-center flex-shrink-0">
-              <span className="text-lg font-bold text-mali-secondary">M</span>
-            </div>
+            {empresa?.logoURL ? (
+              <img
+                src={empresa.logoURL}
+                alt={empresa.nomeFantasia || 'Logo'}
+                className="w-10 h-10 rounded-lg object-contain flex-shrink-0 bg-white"
+              />
+            ) : (
+              <div className="w-10 h-10 bg-gradient-to-br from-mali-primary to-mali-primary-dark rounded-lg flex items-center justify-center flex-shrink-0">
+                <span className="text-lg font-bold text-mali-secondary">
+                  {(empresa?.nomeFantasia || 'M').charAt(0).toUpperCase()}
+                </span>
+              </div>
+            )}
             {isOpen && (
-              <div className="flex flex-col">
-                <span className="font-bold text-sm text-foreground">Mali</span>
-                <span className="text-xs text-muted-foreground">Mobile</span>
+              <div className="flex flex-col min-w-0">
+                <span className="font-bold text-sm text-foreground truncate">
+                  {empresa?.nomeFantasia || 'Mali'}
+                </span>
+                <span className="text-xs text-muted-foreground truncate">
+                  {empresa?.razaoSocial ? 'ERP' : 'Mobile'}
+                </span>
               </div>
             )}
           </Link>
@@ -384,9 +410,7 @@ export default function DashboardSidebar({ isOpen, onToggle }: DashboardSidebarP
           {isOpen && (
             <div className="px-3 py-2 rounded-md bg-background text-xs">
               <p className="font-semibold text-foreground">{userProfile?.nome}</p>
-              <p className="text-muted-foreground">
-                {userProfile?.perfil ? PERFIL_LABEL[userProfile.perfil as Perfil] : ''}
-              </p>
+              <p className="text-muted-foreground">{cargoNome}</p>
             </div>
           )}
           <button

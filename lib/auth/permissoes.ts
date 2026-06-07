@@ -122,6 +122,97 @@ export const LIMITE_PONTUACAO: Record<Perfil, number> = {
   sem_acesso: 0,
 };
 
+// ===================== Comissões =====================
+
+/** Base de cálculo da comissão (forma de remuneração). */
+export type BaseComissao = 'vista' | 'proposta' | 'margem';
+
+export const BASE_COMISSAO_LABEL: Record<BaseComissao, string> = {
+  vista: 'Preço à vista (líquido)',
+  proposta: 'Valor total da proposta',
+  margem: 'Margem (preço − CMV)',
+};
+
+/**
+ * Modo de atribuição da comissão do cargo numa venda:
+ * - `vendedor`: paga apenas ao colaborador que FECHOU a venda (se for deste cargo).
+ * - `override`: paga a TODOS os colaboradores ativos do cargo em toda venda
+ *   (override gerencial, ex.: gerente ganha um % sobre todas as vendas).
+ */
+export type ModoComissao = 'vendedor' | 'override';
+
+export const MODO_COMISSAO_LABEL: Record<ModoComissao, string> = {
+  vendedor: 'Quem fechou a venda',
+  override: 'Todos do cargo (override)',
+};
+
+// ===================== Metadados de permissão (UI) =====================
+
+export const PERMISSAO_LABEL: Record<Permissao, string> = {
+  'dashboard.completo': 'Dashboard completo (KPIs financeiros)',
+  'vendas.acessar': 'Vendas — clientes, orçamentos, carteira',
+  'pdv.usar': 'PDV — abrir balcão e fechar venda',
+  'custo.ver': 'Ver custo / CMV / margem',
+  'financeiro.acessar': 'Financeiro — contas a pagar/receber',
+  'dre.ver': 'DRE / apuração',
+  'estoque.acessar': 'Estoque',
+  'compras.acessar': 'Compras',
+  'catalogo.gerir': 'Catálogo — produtos, categorias, fornecedores',
+  'operacoes.acessar': 'Operações — entregas, assistência',
+  'config.precificacao': 'Configurar precificação',
+  'config.empresa': 'Configurar dados da empresa',
+  'usuarios.gerir': 'Gerir usuários, cargos e comissões',
+};
+
+/** Agrupamento das permissões para exibição em tela. */
+export const GRUPOS_PERMISSAO: { grupo: string; permissoes: Permissao[] }[] = [
+  { grupo: 'Vendas', permissoes: ['vendas.acessar', 'pdv.usar', 'dashboard.completo'] },
+  { grupo: 'Financeiro', permissoes: ['financeiro.acessar', 'dre.ver', 'custo.ver'] },
+  {
+    grupo: 'Catálogo & Estoque',
+    permissoes: ['estoque.acessar', 'compras.acessar', 'catalogo.gerir'],
+  },
+  { grupo: 'Operações', permissoes: ['operacoes.acessar'] },
+  {
+    grupo: 'Configurações',
+    permissoes: ['config.precificacao', 'config.empresa', 'usuarios.gerir'],
+  },
+];
+
+export function getTodasPermissoes(): Permissao[] {
+  return [...TODAS_PERMISSOES];
+}
+
+// ===================== Cargos padrão (seed do Firestore) =====================
+
+export interface CargoPadrao {
+  id: Exclude<Perfil, 'sem_acesso'>;
+  nome: string;
+  permissoes: Permissao[];
+  limitePontuacao: number;
+  comissaoAtiva: boolean;
+  comissaoPct: number;
+  baseComissao: BaseComissao;
+  modoComissao: ModoComissao;
+  sistema: true;
+}
+
+/**
+ * Cargos padrão usados para popular a coleção `cargos` no primeiro acesso à
+ * tela de cargos. São marcados como `sistema` (não podem ser excluídos).
+ */
+export const CARGOS_PADRAO: CargoPadrao[] = PERFIS_ATRIBUIVEIS.map((id) => ({
+  id,
+  nome: PERFIL_LABEL[id],
+  permissoes: PERMISSOES_POR_PERFIL[id],
+  limitePontuacao: LIMITE_PONTUACAO[id],
+  comissaoAtiva: id === 'vendedor' || id === 'gerencia',
+  comissaoPct: id === 'vendedor' ? 3 : id === 'gerencia' ? 1 : 0,
+  baseComissao: 'vista',
+  modoComissao: id === 'gerencia' ? 'override' : 'vendedor',
+  sistema: true,
+}));
+
 /** Verifica se um perfil possui determinada permissão. */
 export function can(perfil: Perfil | undefined | null, permissao: Permissao): boolean {
   if (!perfil) return false;

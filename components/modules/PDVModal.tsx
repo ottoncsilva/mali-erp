@@ -2,7 +2,16 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth, useCollection, useAddDocument, useDebounce } from '@/lib/hooks';
-import { Produto, Cliente, EstoqueItem, Fornecedor, CondicaoPagamentoConfig, Especificador } from '@/types';
+import {
+  Produto,
+  Cliente,
+  EstoqueItem,
+  Fornecedor,
+  CondicaoPagamentoConfig,
+  Especificador,
+  Cargo,
+  Usuario,
+} from '@/types';
 import { LOCALIZACOES_DISPONIVEIS } from '@/types';
 import {
   ItemCarrinho,
@@ -13,6 +22,7 @@ import {
   calcularCMV,
   condicoesPadrao,
 } from '@/lib/utils/precificacao';
+import { calcularComissoesVenda } from '@/lib/comissoes/calculo';
 import { ControlBar, SearchProducts, ItemsTable, ParcelasTable, VersaoGerencial } from './pdv';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
@@ -29,12 +39,14 @@ const fmt = (n: number) =>
   (isFinite(n) ? n : 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export function PDVModal({ isOpen, onClose, onSaved }: PDVModalProps) {
-  const { userProfile } = useAuth();
+  const { userProfile, limitePontuacao } = useAuth();
   const { data: produtos, loading: produtosLoading } = useCollection<Produto>('produtos');
   const { data: clientes } = useCollection<Cliente>('clientes');
   const { data: estoque } = useCollection<EstoqueItem>('estoque');
   const { data: fornecedores } = useCollection<Fornecedor>('fornecedores');
   const { data: especificadores } = useCollection<Especificador>('especificadores');
+  const { data: cargos } = useCollection<Cargo>('cargos');
+  const { data: colaboradores } = useCollection<Usuario>('usuarios');
   const { add: addAtendimento } = useAddDocument('atendimentos');
   const { add: addCliente } = useAddDocument('clientes');
   const { add: addContaPagar } = useAddDocument('contas_pagar');
@@ -119,13 +131,8 @@ export function PDVModal({ isOpen, onClose, onSaved }: PDVModalProps) {
           setCondicoes(ordenadas);
           setCondicaoId(ordenadas[0]?.id || 'avista');
 
-          if (userProfile?.perfil === 'admin') {
-            setLimitePerfil(1.0);
-          } else if (userProfile?.perfil === 'gerencia') {
-            setLimitePerfil(data.limitesPontuacao?.gerencia || 1.5);
-          } else {
-            setLimitePerfil(data.limitesPontuacao?.vendedor || 1.8);
-          }
+          // Trava de pontuação vem do cargo do usuário (0 = ilimitado).
+          setLimitePerfil(limitePontuacao || 0);
         }
       } catch (err) {
         console.error('Erro ao carregar config:', err);
@@ -133,7 +140,7 @@ export function PDVModal({ isOpen, onClose, onSaved }: PDVModalProps) {
     };
 
     if (isOpen) loadConfig();
-  }, [userProfile, isOpen]);
+  }, [userProfile, isOpen, limitePontuacao]);
 
   // Especificador selecionado (comissão capturada do cadastro).
   const especificador = useMemo(
@@ -392,6 +399,37 @@ export function PDVModal({ isOpen, onClose, onSaved }: PDVModalProps) {
             atualizadoEm: new Date(),
           });
           mensagemExtra += `\n\nComissão de R$ ${fmt(resumo.comissaoValor)} lançada em Contas a Pagar para ${especificador.nome}.`;
+        }
+
+        // Comissões dos colaboradores envolvidos (regras por cargo).
+        // Não altera o preço — apenas gera contas a pagar.
+        const cmvTotal = carrinho.reduce(
+          (s, item) => s + calcularCMV(item.produto) * item.quantidade,
+          0
+        );
+        const comissoes = calcularComissoesVenda({
+          vendedorId: userProfile?.uid,
+          cargos,
+          colaboradores,
+          valores: { vista: resumo.vistaLiquido, proposta: plano.proposta, cmv: cmvTotal },
+        });
+        if (comissoes.length > 0) {
+          const vencColab = new Date();
+          vencColab.setDate(vencColab.getDate() + 30);
+          for (const com of comissoes) {
+            await addContaPagar({
+              referenciaId: atendimentoId,
+              colaboradorId: com.colaboradorId,
+              parcelas: [{ numero: 1, valor: com.valor, vencimento: vencColab, pago: false }],
+              valorTotal: com.valor,
+              status: 'aberto',
+              descricao: `Comissão ${com.pct}% (${com.cargoNome}) - ${com.colaboradorNome}`,
+              criadoEm: new Date(),
+              atualizadoEm: new Date(),
+            });
+          }
+          const totalCom = comissoes.reduce((s, c) => s + c.valor, 0);
+          mensagemExtra += `\n\nComissões de equipe: R$ ${fmt(totalCom)} (${comissoes.length} colaborador(es)) lançadas em Contas a Pagar.`;
         }
       }
 
