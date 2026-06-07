@@ -26,7 +26,10 @@ import { calcularComissoesVenda } from '@/lib/comissoes/calculo';
 import { ControlBar, SearchProducts, ItemsTable, ParcelasTable, VersaoGerencial } from './pdv';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
-import { baixarEstoquePorVenda, dispararPedidosEncomenda } from '@/lib/estoque';
+import {
+  finalizarVendaAtomica,
+  ContaPagarFinalizacao,
+} from '@/lib/vendas/finalizarVenda';
 import { ShoppingCart, FileText, Loader2, Eye, EyeOff, X } from 'lucide-react';
 
 interface PDVModalProps {
@@ -49,8 +52,6 @@ export function PDVModal({ isOpen, onClose, onSaved }: PDVModalProps) {
   const { data: colaboradores } = useCollection<Usuario>('usuarios');
   const { add: addAtendimento } = useAddDocument('atendimentos');
   const { add: addCliente } = useAddDocument('clientes');
-  const { add: addContaPagar } = useAddDocument('contas_pagar');
-  const { add: addContaReceber } = useAddDocument('contas_receber');
 
   // Disponibilidade por produto
   const disponibilidade = useMemo(() => {
@@ -307,138 +308,123 @@ export function PDVModal({ isOpen, onClose, onSaved }: PDVModalProps) {
         logistica: { statusEntrega: 'agendada' },
       };
 
-      const atendimentoId = await addAtendimento(atendimento);
-
-      // Integração estoque/compras
       let mensagemExtra = '';
-      if (tipo === 'venda') {
-        const ctx = { registradoPorId: userProfile?.uid || '', registradoPorNome: userProfile?.nome };
-        const encomendas: Array<{
-          produtoId: string;
-          nomeProduto: string;
-          skuProduto: string;
-          quantidade: number;
-          custoUnitario: number;
-          icms: number;
-          ipi: number;
-          fornecedorId: string;
-          fornecedorNome: string;
-        }> = [];
 
-        for (const item of carrinho) {
-          const disp = disponibilidade[item.produtoId] ?? 0;
-          const modalidade = item.modalidade ?? (disp >= item.quantidade ? 'estoque' : 'encomenda');
+      // ===== ORÇAMENTO: apenas cria o atendimento =====
+      if (tipo === 'orcamento') {
+        await addAtendimento(atendimento);
+        alert(`Orçamento salvo com sucesso!`);
+        onSaved?.();
+        onClose();
+        return;
+      }
 
-          if (modalidade === 'estoque') {
-            await baixarEstoquePorVenda(
-              {
-                produtoId: item.produtoId,
-                produtoNome: item.produto.nome,
-                produtoSku: item.produto.sku,
-              },
-              item.quantidade,
-              atendimentoId,
-              ctx
-            );
-          } else {
-            const fornecedor = fornecedores.find((f) => f.id === item.produto.fornecedorId);
-            encomendas.push({
-              produtoId: item.produtoId,
-              nomeProduto: item.produto.nome,
-              skuProduto: item.produto.sku,
-              quantidade: item.quantidade,
-              custoUnitario: item.produto.custoProduto || 0,
-              icms: item.produto.icms || 0,
-              ipi: item.produto.ipi || 0,
-              fornecedorId: item.produto.fornecedorId || '',
-              fornecedorNome: fornecedor?.razaoSocial || '',
-            });
-          }
-        }
+      // ===== VENDA: finalização ATÔMICA (estoque + contas + comissões) =====
+      const ctx = {
+        registradoPorId: userProfile?.uid || '',
+        registradoPorNome: userProfile?.nome,
+      };
 
-        if (encomendas.length > 0) {
-          const numeros = await dispararPedidosEncomenda(encomendas, atendimentoId, ctx);
-          mensagemExtra = `\n\nPedido(s) de compra gerado(s): ${numeros.join(', ')}.`;
-        }
+      // Monta os itens com modalidade resolvida (estoque vs encomenda).
+      const itensVenda = carrinho.map((item) => {
+        const disp = disponibilidade[item.produtoId] ?? 0;
+        const modalidade =
+          item.modalidade ?? (disp >= item.quantidade ? 'estoque' : 'encomenda');
+        const fornecedor = fornecedores.find((f) => f.id === item.produto.fornecedorId);
+        return {
+          produtoId: item.produtoId,
+          produtoNome: item.produto.nome,
+          produtoSku: item.produto.sku,
+          quantidade: item.quantidade,
+          modalidade: modalidade as 'estoque' | 'encomenda',
+          custoUnitario: item.produto.custoProduto || 0,
+          icms: item.produto.icms || 0,
+          ipi: item.produto.ipi || 0,
+          fornecedorId: item.produto.fornecedorId || '',
+          fornecedorNome: fornecedor?.razaoSocial || '',
+        };
+      });
 
-        // Conta a receber: parcelas da venda (entrada hoje + demais vencimentos).
-        const parcelasReceber = [
-          ...(plano.entrada > 0
-            ? [{ numero: 0, valor: plano.entrada, vencimento: new Date(), pago: false }]
-            : []),
-          ...plano.parcelas.map((p) => ({
-            numero: p.numero,
-            valor: parcelasEditaveis[p.numero]?.valor ?? p.valor,
-            vencimento: parcelasEditaveis[p.numero]?.vencimento ?? p.vencimento,
-            pago: false,
-          })),
-        ];
-        await addContaReceber({
-          referenciaId: atendimentoId,
-          parcelas: parcelasReceber,
-          valorTotal: plano.proposta,
-          status: 'aberto',
-          descricao: `Venda ${condicaoSelecionada.nome} - ${clienteSelecionado?.nome || ''}`.trim(),
-          criadoEm: new Date(),
-          atualizadoEm: new Date(),
+      // Conta a receber: parcelas da venda (entrada hoje + demais vencimentos).
+      const parcelasReceber = [
+        ...(plano.entrada > 0
+          ? [{ numero: 0, valor: plano.entrada, vencimento: new Date(), pago: false }]
+          : []),
+        ...plano.parcelas.map((p) => ({
+          numero: p.numero,
+          valor: parcelasEditaveis[p.numero]?.valor ?? p.valor,
+          vencimento: parcelasEditaveis[p.numero]?.vencimento ?? p.vencimento,
+          pago: false,
+        })),
+      ];
+
+      // Contas a pagar: comissões (especificador + colaboradores por cargo).
+      const contasPagar: ContaPagarFinalizacao[] = [];
+
+      if (especificador && resumo.comissaoValor > 0) {
+        const vencComissao = new Date();
+        vencComissao.setDate(vencComissao.getDate() + 30);
+        contasPagar.push({
+          parcelas: [
+            { numero: 1, valor: resumo.comissaoValor, vencimento: vencComissao, pago: false },
+          ],
+          valorTotal: resumo.comissaoValor,
+          descricao: `Comissão (${resumo.comissaoPercentual.toFixed(1)}%) - ${especificador.nome}`,
         });
+      }
 
-        // Conta a pagar: comissão do especificador (vencimento em 30 dias).
-        if (especificador && resumo.comissaoValor > 0) {
-          const vencComissao = new Date();
-          vencComissao.setDate(vencComissao.getDate() + 30);
-          await addContaPagar({
-            referenciaId: atendimentoId,
-            parcelas: [
-              { numero: 1, valor: resumo.comissaoValor, vencimento: vencComissao, pago: false },
-            ],
-            valorTotal: resumo.comissaoValor,
-            status: 'aberto',
-            descricao: `Comissão (${resumo.comissaoPercentual.toFixed(1)}%) - ${especificador.nome}`,
-            criadoEm: new Date(),
-            atualizadoEm: new Date(),
+      const cmvTotal = carrinho.reduce(
+        (s, item) => s + calcularCMV(item.produto) * item.quantidade,
+        0
+      );
+      const comissoes = calcularComissoesVenda({
+        vendedorId: userProfile?.uid,
+        cargos,
+        colaboradores,
+        valores: { vista: resumo.vistaLiquido, proposta: plano.proposta, cmv: cmvTotal },
+      });
+      if (comissoes.length > 0) {
+        const vencColab = new Date();
+        vencColab.setDate(vencColab.getDate() + 30);
+        for (const com of comissoes) {
+          contasPagar.push({
+            colaboradorId: com.colaboradorId,
+            parcelas: [{ numero: 1, valor: com.valor, vencimento: vencColab, pago: false }],
+            valorTotal: com.valor,
+            descricao: `Comissão ${com.pct}% (${com.cargoNome}) - ${com.colaboradorNome}`,
           });
-          mensagemExtra += `\n\nComissão de R$ ${fmt(resumo.comissaoValor)} lançada em Contas a Pagar para ${especificador.nome}.`;
-        }
-
-        // Comissões dos colaboradores envolvidos (regras por cargo).
-        // Não altera o preço — apenas gera contas a pagar.
-        const cmvTotal = carrinho.reduce(
-          (s, item) => s + calcularCMV(item.produto) * item.quantidade,
-          0
-        );
-        const comissoes = calcularComissoesVenda({
-          vendedorId: userProfile?.uid,
-          cargos,
-          colaboradores,
-          valores: { vista: resumo.vistaLiquido, proposta: plano.proposta, cmv: cmvTotal },
-        });
-        if (comissoes.length > 0) {
-          const vencColab = new Date();
-          vencColab.setDate(vencColab.getDate() + 30);
-          for (const com of comissoes) {
-            await addContaPagar({
-              referenciaId: atendimentoId,
-              colaboradorId: com.colaboradorId,
-              parcelas: [{ numero: 1, valor: com.valor, vencimento: vencColab, pago: false }],
-              valorTotal: com.valor,
-              status: 'aberto',
-              descricao: `Comissão ${com.pct}% (${com.cargoNome}) - ${com.colaboradorNome}`,
-              criadoEm: new Date(),
-              atualizadoEm: new Date(),
-            });
-          }
-          const totalCom = comissoes.reduce((s, c) => s + c.valor, 0);
-          mensagemExtra += `\n\nComissões de equipe: R$ ${fmt(totalCom)} (${comissoes.length} colaborador(es)) lançadas em Contas a Pagar.`;
         }
       }
 
-      alert(`${tipo === 'orcamento' ? 'Orçamento salvo' : 'Venda concluída'} com sucesso!${mensagemExtra}`);
+      const resultado = await finalizarVendaAtomica({
+        atendimento,
+        itens: itensVenda,
+        contaReceber: {
+          parcelas: parcelasReceber,
+          valorTotal: plano.proposta,
+          descricao: `Venda ${condicaoSelecionada.nome} - ${clienteSelecionado?.nome || ''}`.trim(),
+        },
+        contasPagar,
+        ctx,
+      });
+
+      if (resultado.numerosPedidoCompra.length > 0) {
+        mensagemExtra += `\n\nPedido(s) de compra gerado(s): ${resultado.numerosPedidoCompra.join(', ')}.`;
+      }
+      if (especificador && resumo.comissaoValor > 0) {
+        mensagemExtra += `\n\nComissão de R$ ${fmt(resumo.comissaoValor)} lançada em Contas a Pagar para ${especificador.nome}.`;
+      }
+      if (comissoes.length > 0) {
+        const totalCom = comissoes.reduce((s, c) => s + c.valor, 0);
+        mensagemExtra += `\n\nComissões de equipe: R$ ${fmt(totalCom)} (${comissoes.length} colaborador(es)) lançadas em Contas a Pagar.`;
+      }
+
+      alert(`Venda concluída com sucesso!${mensagemExtra}`);
       onSaved?.();
       onClose();
     } catch (err) {
       console.error('Erro:', err);
-      alert('Erro ao salvar');
+      alert('Erro ao salvar: ' + (err instanceof Error ? err.message : 'erro desconhecido'));
     } finally {
       setProcessando(false);
     }

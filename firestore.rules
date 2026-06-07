@@ -116,12 +116,13 @@ service cloud.firestore {
     }
 
     // MOVIMENTOS DE CAIXA — trilha imutável de entradas/saídas reais.
-    // Leitura por autenticado; criação APENAS via transações (atômica com contas).
-    // Edição/exclusão bloqueadas para preservar auditoria.
-    // Nota: o servidor cria movimentos automaticamente em transações; nunca direto do cliente.
+    // Leitura por autenticado; criação apenas por perfis financeiros (baixa de
+    // parcelas roda em transação client-side). Edição/exclusão bloqueadas para
+    // preservar a auditoria — estornos são feitos com NOVO movimento de reversão.
     match /movimentos_caixa/{id} {
       allow read: if isAuth();
-      allow create, update, delete: if false; // Imutável, transações só via servidor
+      allow create: if podeFinanceiro();
+      allow update, delete: if false;
     }
 
     match /assistencia_tecnica/{id} {
