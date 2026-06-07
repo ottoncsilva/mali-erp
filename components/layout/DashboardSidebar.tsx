@@ -28,6 +28,7 @@ import {
   ShieldCheck,
   Percent,
   Building2,
+  Landmark,
 } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { DepositosModal } from '@/components/modules/estoque/DepositosModal';
@@ -129,6 +130,18 @@ const navItems: NavItem[] = [
         label: 'Contas a Receber',
         href: '/dashboard/financeiro',
         icon: <DollarSign className="w-4 h-4" />,
+        permissao: 'financeiro.acessar',
+      },
+      {
+        label: 'Contas Bancárias',
+        href: '/dashboard/configuracoes/contas_bancarias',
+        icon: <Building2 className="w-4 h-4" />,
+        permissao: 'financeiro.acessar',
+      },
+      {
+        label: 'Categorias Financeiras',
+        href: '/dashboard/configuracoes/categorias_financeiras',
+        icon: <Landmark className="w-4 h-4" />,
         permissao: 'financeiro.acessar',
       },
       {

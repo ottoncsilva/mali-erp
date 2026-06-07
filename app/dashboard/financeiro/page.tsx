@@ -1,11 +1,14 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useCollection, useUpdateDocument } from '@/lib/hooks';
+import { useCollection } from '@/lib/hooks';
 import { Table } from '@/components/ui/Table';
+import { Modal } from '@/components/ui/Modal';
 import { formatBRL, formatData } from '@/lib/utils/format';
-import { ContaPagar, ContaReceber } from '@/types';
-import { DollarSign, TrendingUp, TrendingDown, CheckCircle2 } from 'lucide-react';
+import { ContaPagar, ContaReceber, ContaBancaria, FormaPagamento } from '@/types';
+import { DollarSign, TrendingUp, TrendingDown, CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
+import { baixarParcela, reabrirParcela } from '@/lib/financeiro/baixa';
+import { useAuth } from '@/lib/hooks';
 
 type Tipo = 'receber' | 'pagar';
 
@@ -17,8 +20,33 @@ interface LinhaConta {
   valor: number;
   vencimento: any;
   pago: boolean;
+  pagoEm?: Date;
   totalParcelas: number;
+  contaReceber?: ContaReceber;
+  contaPagar?: ContaPagar;
 }
+
+interface FormBaixa {
+  dataRecebimento: Date;
+  contaBancariaId: string;
+  formaPagamento: FormaPagamento;
+  valorPago: number;
+  juros: number;
+  multa: number;
+  desconto: number;
+  observacoes: string;
+}
+
+const FORMAS_PAGAMENTO: { value: FormaPagamento; label: string }[] = [
+  { value: 'dinheiro', label: 'Dinheiro' },
+  { value: 'pix', label: 'PIX' },
+  { value: 'cartao_credito', label: 'Cartão de Crédito' },
+  { value: 'cartao_debito', label: 'Cartão de Débito' },
+  { value: 'boleto', label: 'Boleto' },
+  { value: 'transferencia', label: 'Transferência' },
+  { value: 'cheque', label: 'Cheque' },
+  { value: 'outro', label: 'Outro' },
+];
 
 function toMillis(v: any): number {
   if (!v) return 0;
@@ -29,14 +57,29 @@ function toMillis(v: any): number {
 }
 
 export default function FinanceiroPage() {
+  const { userProfile } = useAuth();
   const { data: contasReceber, loading: loadingR } = useCollection<ContaReceber>('contas_receber');
   const { data: contasPagar, loading: loadingP } = useCollection<ContaPagar>('contas_pagar');
-  const { update: updateReceber } = useUpdateDocument('contas_receber');
-  const { update: updatePagar } = useUpdateDocument('contas_pagar');
+  const { data: contas, loading: loadingContas } = useCollection<ContaBancaria>('contas_bancarias');
 
   const [filtro, setFiltro] = useState<Tipo | 'todas'>('todas');
+  const [modalBaixaOpen, setModalBaixaOpen] = useState(false);
+  const [linhaParaBaixar, setLinhaParaBaixar] = useState<LinhaConta | null>(null);
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState('');
 
-  // Achata as parcelas de cada conta em linhas individuais.
+  const [formBaixa, setFormBaixa] = useState<FormBaixa>({
+    dataRecebimento: new Date(),
+    contaBancariaId: '',
+    formaPagamento: 'pix',
+    valorPago: 0,
+    juros: 0,
+    multa: 0,
+    desconto: 0,
+    observacoes: '',
+  });
+
+  // Achata as parcelas em linhas
   const linhas = useMemo(() => {
     const todas: LinhaConta[] = [];
     (contasReceber as (ContaReceber & { id: string })[]).forEach((c) => {
@@ -49,7 +92,9 @@ export default function FinanceiroPage() {
           valor: p.valor,
           vencimento: p.vencimento,
           pago: p.pago,
+          pagoEm: p.pagoEm,
           totalParcelas: c.parcelas.length,
+          contaReceber: c,
         });
       });
     });
@@ -63,7 +108,9 @@ export default function FinanceiroPage() {
           valor: p.valor,
           vencimento: p.vencimento,
           pago: p.pago,
+          pagoEm: p.pagoEm,
           totalParcelas: c.parcelas.length,
+          contaPagar: c,
         });
       });
     });
@@ -79,21 +126,50 @@ export default function FinanceiroPage() {
     .filter((l) => l.tipo === 'pagar' && !l.pago)
     .reduce((s, l) => s + l.valor, 0);
 
-  // Marca/desmarca uma parcela como paga, recalculando o status da conta.
-  const togglePago = async (linha: LinhaConta) => {
-    const colecao = linha.tipo === 'receber' ? contasReceber : contasPagar;
-    const update = linha.tipo === 'receber' ? updateReceber : updatePagar;
-    const conta = (colecao as any[]).find((c) => c.id === linha.contaId);
-    if (!conta) return;
-    const parcelas = conta.parcelas.map((p: any) =>
-      p.numero === linha.numeroParcela
-        ? { ...p, pago: !linha.pago, pagoEm: !linha.pago ? new Date() : null }
-        : p
-    );
-    const todasPagas = parcelas.every((p: any) => p.pago);
-    const algumaPaga = parcelas.some((p: any) => p.pago);
-    const status = todasPagas ? 'pago' : algumaPaga ? 'parcial' : 'aberto';
-    await update(linha.contaId, { parcelas, status, atualizadoEm: new Date() });
+  const handleBaixar = (linha: LinhaConta) => {
+    setLinhaParaBaixar(linha);
+    setFormBaixa({
+      dataRecebimento: new Date(),
+      contaBancariaId: contas.length > 0 ? contas[0].id : '',
+      formaPagamento: 'pix',
+      valorPago: linha.valor,
+      juros: 0,
+      multa: 0,
+      desconto: 0,
+      observacoes: '',
+    });
+    setErro('');
+    setModalBaixaOpen(true);
+  };
+
+  const handleRebaixar = async (linha: LinhaConta) => {
+    if (!confirm('Tem certeza que deseja reabrir esta parcela?')) return;
+    try {
+      await reabrirParcela(linha.contaId, linha.tipo, linha.numeroParcela);
+    } catch (err) {
+      alert('Erro ao reabrir: ' + (err instanceof Error ? err.message : ''));
+    }
+  };
+
+  const handleSalvarBaixa = async () => {
+    if (!linhaParaBaixar) return;
+    setErro('');
+    setSalvando(true);
+    try {
+      await baixarParcela({
+        contaId: linhaParaBaixar.contaId,
+        tipo: linhaParaBaixar.tipo,
+        parcelaNumero: linhaParaBaixar.numeroParcela,
+        ...formBaixa,
+        registradoPorId: userProfile?.uid || '',
+        registradoPorNome: userProfile?.nome || '',
+      });
+      setModalBaixaOpen(false);
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : 'Erro ao baixar');
+    } finally {
+      setSalvando(false);
+    }
   };
 
   const columns = [
@@ -102,7 +178,7 @@ export default function FinanceiroPage() {
       accessor: 'descricao',
       render: (v: string, row: LinhaConta) => (
         <div>
-          <p className="text-foreground">{v}</p>
+          <p className="text-foreground text-sm">{v}</p>
           {row.totalParcelas > 1 && (
             <p className="text-xs text-muted-foreground">
               Parcela {row.numeroParcela}/{row.totalParcelas}
@@ -136,18 +212,28 @@ export default function FinanceiroPage() {
     {
       header: 'Vencimento',
       accessor: 'vencimento',
-      render: (data: any) => formatData(data),
+      render: (data: any) => {
+        const d = toMillis(data);
+        const hoje = toMillis(new Date());
+        const vencido = d < hoje && data;
+        return (
+          <span className={vencido ? 'text-destructive font-semibold' : ''}>
+            {formatData(data)}
+            {vencido && ' ⚠️'}
+          </span>
+        );
+      },
     },
     {
       header: 'Status',
       accessor: 'pago',
-      render: (pago: boolean) => (
+      render: (pago: boolean, row: LinhaConta) => (
         <span
           className={`px-2 py-1 rounded text-xs font-medium ${
             pago ? 'bg-emerald-500/20 text-emerald-600' : 'bg-amber-500/20 text-amber-600'
           }`}
         >
-          {pago ? '✓ Pago' : '⏳ Aberto'}
+          {pago ? `✓ Pago em ${formatData(row.pagoEm)}` : '⏳ Aberto'}
         </span>
       ),
     },
@@ -155,14 +241,26 @@ export default function FinanceiroPage() {
       header: 'Ações',
       accessor: 'contaId',
       render: (_: string, row: LinhaConta) => (
-        <button
-          onClick={() => togglePago(row)}
-          className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-border hover:bg-background transition-colors"
-          title={row.pago ? 'Marcar como aberto' : 'Marcar como pago'}
-        >
-          <CheckCircle2 className={`w-4 h-4 ${row.pago ? 'text-emerald-600' : 'text-muted-foreground'}`} />
-          {row.pago ? 'Reabrir' : 'Baixar'}
-        </button>
+        <div className="flex gap-2">
+          {!row.pago ? (
+            <button
+              onClick={() => handleBaixar(row)}
+              className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-emerald-500 text-emerald-600 hover:bg-emerald-500/10 transition-colors"
+              title="Baixar"
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              Baixar
+            </button>
+          ) : (
+            <button
+              onClick={() => handleRebaixar(row)}
+              className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-amber-500 text-amber-600 hover:bg-amber-500/10 transition-colors"
+              title="Reabrir"
+            >
+              Reabrir
+            </button>
+          )}
+        </div>
       ),
     },
   ];
@@ -233,9 +331,255 @@ export default function FinanceiroPage() {
       <Table
         columns={columns}
         data={filtradas}
-        loading={loadingR || loadingP}
+        loading={loadingR || loadingP || loadingContas}
         emptyMessage="Nenhuma conta encontrada"
       />
+
+      {/* Modal de Baixa Profissional */}
+      <Modal
+        isOpen={modalBaixaOpen}
+        title={linhaParaBaixar ? `Baixar ${linhaParaBaixar.tipo === 'receber' ? 'Recebimento' : 'Pagamento'}` : 'Baixa'}
+        onClose={() => setModalBaixaOpen(false)}
+        size="lg"
+      >
+        {linhaParaBaixar && (
+          <div className="space-y-4">
+            {/* Dados da parcela */}
+            <div className="p-4 bg-background rounded-lg border border-border space-y-2">
+              <p className="text-sm text-muted-foreground">
+                <strong>{linhaParaBaixar.descricao}</strong>
+              </p>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-muted-foreground">Parcela:</span>{' '}
+                  <span className="font-semibold">{linhaParaBaixar.numeroParcela}/{linhaParaBaixar.totalParcelas}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Vencimento:</span>{' '}
+                  <span className="font-semibold">{formatData(linhaParaBaixar.vencimento)}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Valor Original:</span>{' '}
+                  <span className="font-semibold">{formatBRL(linhaParaBaixar.valor)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Formulário de baixa */}
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-1 block">Data</label>
+                  <input
+                    type="date"
+                    value={formBaixa.dataRecebimento.toISOString().split('T')[0]}
+                    onChange={(e) =>
+                      setFormBaixa({
+                        ...formBaixa,
+                        dataRecebimento: new Date(e.target.value),
+                      })
+                    }
+                    className="w-full px-3 py-2 bg-input border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-mali-primary"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-1 block">Forma de Pagamento</label>
+                  <select
+                    value={formBaixa.formaPagamento}
+                    onChange={(e) =>
+                      setFormBaixa({
+                        ...formBaixa,
+                        formaPagamento: e.target.value as FormaPagamento,
+                      })
+                    }
+                    className="w-full px-3 py-2 bg-input border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-mali-primary"
+                  >
+                    {FORMAS_PAGAMENTO.map((f) => (
+                      <option key={f.value} value={f.value}>
+                        {f.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-foreground mb-1 block">Conta Bancária</label>
+                <select
+                  value={formBaixa.contaBancariaId}
+                  onChange={(e) =>
+                    setFormBaixa({
+                      ...formBaixa,
+                      contaBancariaId: e.target.value,
+                    })
+                  }
+                  className="w-full px-3 py-2 bg-input border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-mali-primary"
+                >
+                  <option value="">Selecione...</option>
+                  {contas.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.nome}
+                    </option>
+                  ))}
+                </select>
+                {!formBaixa.contaBancariaId && contas.length === 0 && (
+                  <p className="text-xs text-amber-600 mt-1">Nenhuma conta bancária cadastrada</p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-1 block">Valor Pago</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={formBaixa.valorPago}
+                    onChange={(e) =>
+                      setFormBaixa({
+                        ...formBaixa,
+                        valorPago: parseFloat(e.target.value) || 0,
+                      })
+                    }
+                    className="w-full px-3 py-2 bg-input border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-mali-primary"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-1 block">Desconto (R$)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={formBaixa.desconto}
+                    onChange={(e) =>
+                      setFormBaixa({
+                        ...formBaixa,
+                        desconto: parseFloat(e.target.value) || 0,
+                      })
+                    }
+                    className="w-full px-3 py-2 bg-input border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-mali-primary"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-1 block">Juros (R$)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={formBaixa.juros}
+                    onChange={(e) =>
+                      setFormBaixa({
+                        ...formBaixa,
+                        juros: parseFloat(e.target.value) || 0,
+                      })
+                    }
+                    className="w-full px-3 py-2 bg-input border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-mali-primary"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-1 block">Multa (R$)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={formBaixa.multa}
+                    onChange={(e) =>
+                      setFormBaixa({
+                        ...formBaixa,
+                        multa: parseFloat(e.target.value) || 0,
+                      })
+                    }
+                    className="w-full px-3 py-2 bg-input border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-mali-primary"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-foreground mb-1 block">Observações</label>
+                <textarea
+                  value={formBaixa.observacoes}
+                  onChange={(e) =>
+                    setFormBaixa({
+                      ...formBaixa,
+                      observacoes: e.target.value,
+                    })
+                  }
+                  className="w-full px-3 py-2 bg-input border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-mali-primary resize-none"
+                  rows={2}
+                  placeholder="Notas sobre a baixa..."
+                />
+              </div>
+
+              {/* Resumo */}
+              <div className="p-3 bg-background rounded-lg border border-border">
+                <p className="text-sm font-medium text-foreground mb-2">Resumo da Baixa</p>
+                <div className="space-y-1 text-sm text-muted-foreground">
+                  <div className="flex justify-between">
+                    <span>Valor Original:</span>
+                    <span>{formatBRL(linhaParaBaixar.valor)}</span>
+                  </div>
+                  {formBaixa.desconto > 0 && (
+                    <div className="flex justify-between text-emerald-600">
+                      <span>- Desconto:</span>
+                      <span>-{formatBRL(formBaixa.desconto)}</span>
+                    </div>
+                  )}
+                  {formBaixa.juros > 0 && (
+                    <div className="flex justify-between text-red-600">
+                      <span>+ Juros:</span>
+                      <span>+{formatBRL(formBaixa.juros)}</span>
+                    </div>
+                  )}
+                  {formBaixa.multa > 0 && (
+                    <div className="flex justify-between text-red-600">
+                      <span>+ Multa:</span>
+                      <span>+{formatBRL(formBaixa.multa)}</span>
+                    </div>
+                  )}
+                  <div className="border-t border-border pt-1 mt-1 flex justify-between font-semibold text-foreground">
+                    <span>Total a Pagar:</span>
+                    <span>
+                      {formatBRL(
+                        linhaParaBaixar.valor -
+                          formBaixa.desconto +
+                          formBaixa.juros +
+                          formBaixa.multa
+                      )}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {erro && (
+              <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg flex gap-2">
+                <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-destructive">{erro}</p>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2 pt-4 border-t border-border">
+              <button
+                onClick={() => setModalBaixaOpen(false)}
+                className="px-4 py-2 rounded-md border border-border text-foreground hover:bg-background"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSalvarBaixa}
+                disabled={salvando || !formBaixa.contaBancariaId}
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white font-semibold rounded-md hover:opacity-90 disabled:opacity-50"
+              >
+                {salvando && <Loader2 className="w-4 h-4 animate-spin" />}
+                Confirmar Baixa
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }
