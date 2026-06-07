@@ -20,8 +20,8 @@ export function DepositosModal({ isOpen, onClose }: DepositosModalProps) {
     responsavel: '',
   });
 
-  const { addDocument, loading: adding } = useAddDocument('depositos');
-  const { updateDocument, loading: updating } = useUpdateDocument('depositos');
+  const { add, loading: adding } = useAddDocument('depositos');
+  const { update, loading: updating } = useUpdateDocument('depositos');
 
   useEffect(() => {
     if (!isOpen) {
@@ -48,17 +48,14 @@ export function DepositosModal({ isOpen, onClose }: DepositosModalProps) {
 
     try {
       if (editingId) {
-        await updateDocument(editingId, {
+        await update(editingId, {
           ...formData,
-          atualizadoEm: new Date(),
         });
         setEditingId(null);
       } else {
-        await addDocument({
+        await add({
           ...formData,
           ativo: true,
-          criadoEm: new Date(),
-          atualizadoEm: new Date(),
         });
       }
 
