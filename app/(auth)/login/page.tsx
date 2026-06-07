@@ -1,21 +1,23 @@
 'use client';
 
 import { useState } from 'react';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '@/lib/firebase/config';
 import { useRouter } from 'next/navigation';
-import { Mail, Lock, AlertCircle, Loader2 } from 'lucide-react';
+import { Mail, Lock, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [aviso, setAviso] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setAviso('');
     setLoading(true);
 
     try {
@@ -26,6 +28,21 @@ export default function LoginPage() {
       setError(errorMessage);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResetSenha = async () => {
+    setError('');
+    setAviso('');
+    if (!email.trim()) {
+      setError('Informe seu e-mail para receber o link de redefinição.');
+      return;
+    }
+    try {
+      await sendPasswordResetEmail(auth, email.trim());
+      setAviso('Enviamos um e-mail com o link para redefinir sua senha.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao enviar e-mail de redefinição');
     }
   };
 
@@ -86,6 +103,26 @@ export default function LoginPage() {
               <p className="text-sm text-destructive">{error}</p>
             </div>
           )}
+
+          {/* Aviso (sucesso) */}
+          {aviso && (
+            <div className="flex items-center gap-2 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-md">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              <p className="text-sm text-emerald-700">{aviso}</p>
+            </div>
+          )}
+
+          {/* Esqueci minha senha */}
+          <div className="text-right">
+            <button
+              type="button"
+              onClick={handleResetSenha}
+              disabled={loading}
+              className="text-xs text-mali-primary hover:underline disabled:opacity-50"
+            >
+              Esqueci minha senha
+            </button>
+          </div>
 
           {/* Submit Button */}
           <button

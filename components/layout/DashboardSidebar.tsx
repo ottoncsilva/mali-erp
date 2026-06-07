@@ -28,8 +28,7 @@ import {
 } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { DepositosModal } from '@/components/modules/estoque/DepositosModal';
-
-type UserProfile = 'admin' | 'gerencia' | 'vendedor' | 'comprador' | 'financeiro' | 'estoquista';
+import { Permissao, can, PERFIL_LABEL, Perfil } from '@/lib/auth';
 
 // Icon component para Briefcase
 const Briefcase = (props: any) => (
@@ -52,7 +51,9 @@ interface NavItem {
   label: string;
   href?: string;
   icon: React.ReactNode;
-  requiredProfiles?: UserProfile[];
+  /** Permissão exigida para ver o item. Itens-pai sem permissão somem se
+   *  todos os filhos forem filtrados. */
+  permissao?: Permissao;
   children?: NavItem[];
   action?: 'depositos-modal';
 }
@@ -68,31 +69,30 @@ const navItems: NavItem[] = [
   {
     label: 'Vendas',
     icon: <ShoppingCart className="w-4 h-4" />,
-    requiredProfiles: ['admin', 'gerencia', 'vendedor'],
     children: [
       {
         label: 'Clientes',
         href: '/dashboard/clientes',
         icon: <User className="w-4 h-4" />,
-        requiredProfiles: ['admin', 'gerencia', 'vendedor'],
+        permissao: 'vendas.acessar',
       },
       {
         label: 'Orçamentos',
         href: '/dashboard/orcamentos',
         icon: <FileText className="w-4 h-4" />,
-        requiredProfiles: ['admin', 'gerencia', 'vendedor'],
+        permissao: 'vendas.acessar',
       },
       {
         label: 'Carteira',
         href: '/dashboard/carteira',
         icon: <Briefcase className="w-4 h-4" />,
-        requiredProfiles: ['admin', 'gerencia', 'vendedor'],
+        permissao: 'vendas.acessar',
       },
       {
         label: 'Especificadores',
         href: '/dashboard/vendas/especificadores',
         icon: <Users className="w-4 h-4" />,
-        requiredProfiles: ['admin', 'gerencia', 'vendedor'],
+        permissao: 'vendas.acessar',
       },
     ],
   },
@@ -101,17 +101,18 @@ const navItems: NavItem[] = [
   {
     label: 'Operações',
     icon: <Truck className="w-4 h-4" />,
-    requiredProfiles: ['admin', 'gerencia'],
     children: [
       {
         label: 'Entregas',
         href: '/dashboard/entregas',
         icon: <Truck className="w-4 h-4" />,
+        permissao: 'operacoes.acessar',
       },
       {
         label: 'Assistência Técnica',
         href: '/dashboard/assistencia',
         icon: <Wrench className="w-4 h-4" />,
+        permissao: 'operacoes.acessar',
       },
     ],
   },
@@ -120,22 +121,24 @@ const navItems: NavItem[] = [
   {
     label: 'Financeiro',
     icon: <CreditCard className="w-4 h-4" />,
-    requiredProfiles: ['admin', 'gerencia', 'financeiro'],
     children: [
       {
         label: 'Contas a Receber',
         href: '/dashboard/financeiro',
         icon: <DollarSign className="w-4 h-4" />,
+        permissao: 'financeiro.acessar',
       },
       {
         label: 'Relatórios',
         href: '/dashboard/relatorios',
         icon: <BarChart3 className="w-4 h-4" />,
+        permissao: 'financeiro.acessar',
       },
       {
         label: 'DRE',
         href: '/dashboard/apuracao',
         icon: <BarChart3 className="w-4 h-4" />,
+        permissao: 'dre.ver',
       },
     ],
   },
@@ -144,43 +147,42 @@ const navItems: NavItem[] = [
   {
     label: 'Catálogo',
     icon: <Package className="w-4 h-4" />,
-    requiredProfiles: ['admin', 'gerencia', 'comprador', 'estoquista'],
     children: [
       {
         label: 'Produtos',
         href: '/dashboard/produtos',
         icon: <Package className="w-4 h-4" />,
-        requiredProfiles: ['admin', 'gerencia', 'comprador'],
+        permissao: 'catalogo.gerir',
       },
       {
         label: 'Estoque',
         href: '/dashboard/estoque',
         icon: <Boxes className="w-4 h-4" />,
-        requiredProfiles: ['admin', 'gerencia', 'comprador', 'estoquista'],
+        permissao: 'estoque.acessar',
       },
       {
         label: 'Compras',
         href: '/dashboard/compras',
         icon: <ClipboardList className="w-4 h-4" />,
-        requiredProfiles: ['admin', 'gerencia', 'comprador'],
+        permissao: 'compras.acessar',
       },
       {
         label: 'Depósitos',
         action: 'depositos-modal',
         icon: <Warehouse className="w-4 h-4" />,
-        requiredProfiles: ['admin', 'gerencia', 'comprador'],
+        permissao: 'estoque.acessar',
       },
       {
         label: 'Categorias',
         href: '/dashboard/configuracoes/categorias',
         icon: <CheckSquare className="w-4 h-4" />,
-        requiredProfiles: ['admin', 'gerencia', 'comprador'],
+        permissao: 'catalogo.gerir',
       },
       {
         label: 'Fornecedores',
         href: '/dashboard/fornecedores',
         icon: <Truck className="w-4 h-4" />,
-        requiredProfiles: ['admin', 'gerencia', 'comprador'],
+        permissao: 'catalogo.gerir',
       },
     ],
   },
@@ -189,25 +191,24 @@ const navItems: NavItem[] = [
   {
     label: 'Configurações',
     icon: <Settings className="w-4 h-4" />,
-    requiredProfiles: ['admin', 'gerencia'],
     children: [
       {
         label: 'Precificação',
         href: '/dashboard/configuracoes/precificacao',
         icon: <DollarSign className="w-4 h-4" />,
-        requiredProfiles: ['admin', 'gerencia'],
+        permissao: 'config.precificacao',
       },
       {
         label: 'Dados da Empresa',
         href: '/dashboard/configuracoes',
         icon: <Settings className="w-4 h-4" />,
-        requiredProfiles: ['admin'],
+        permissao: 'config.empresa',
       },
       {
         label: 'Usuários',
-        href: '#',
+        href: '/dashboard/configuracoes/usuarios',
         icon: <Users className="w-4 h-4" />,
-        requiredProfiles: ['admin'],
+        permissao: 'usuarios.gerir',
       },
     ],
   },
@@ -240,17 +241,19 @@ export default function DashboardSidebar({ isOpen, onToggle }: DashboardSidebarP
     setExpandedItems(newExpanded);
   };
 
-  // Filtrar itens por role - recursivamente
+  // Filtra itens por permissão, recursivamente. Itens-pai sem permissão própria
+  // são removidos quando todos os filhos foram filtrados.
   const filterItems = (items: NavItem[]): NavItem[] => {
     return items
-      .filter((item) => {
-        if (!item.requiredProfiles) return true;
-        return item.requiredProfiles.includes((userProfile?.perfil as UserProfile) || '');
-      })
       .map((item) => ({
         ...item,
         children: item.children ? filterItems(item.children) : undefined,
-      }));
+      }))
+      .filter((item) => {
+        if (item.permissao && !can(userProfile?.perfil, item.permissao)) return false;
+        if (item.children && item.children.length === 0) return false;
+        return true;
+      });
   };
 
   const filteredItems = useMemo(
@@ -381,7 +384,9 @@ export default function DashboardSidebar({ isOpen, onToggle }: DashboardSidebarP
           {isOpen && (
             <div className="px-3 py-2 rounded-md bg-background text-xs">
               <p className="font-semibold text-foreground">{userProfile?.nome}</p>
-              <p className="text-muted-foreground capitalize">{userProfile?.perfil}</p>
+              <p className="text-muted-foreground">
+                {userProfile?.perfil ? PERFIL_LABEL[userProfile.perfil as Perfil] : ''}
+              </p>
             </div>
           )}
           <button

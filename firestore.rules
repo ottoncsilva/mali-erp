@@ -8,6 +8,21 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Perfil do usuário que está fazendo a requisição (lê o próprio doc).
+    function perfilAtual() {
+      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.perfil;
+    }
+
+    // Gestores: admin e gerência.
+    function isGestor() {
+      return isAuth() && perfilAtual() in ['admin', 'gerencia'];
+    }
+
+    // Quem pode mexer no financeiro.
+    function podeFinanceiro() {
+      return isAuth() && perfilAtual() in ['admin', 'gerencia', 'financeiro'];
+    }
+
     // ATENDIMENTOS (Orçamentos e Vendas)
     // - Leitura pública APENAS de orçamentos (para o link público do cliente).
     // - Vendas e escrita exigem autenticação.
@@ -45,20 +60,34 @@ service cloud.firestore {
       allow read, write: if isAuth();
     }
 
+    // USUÁRIOS — dados de acesso e perfil (sensível).
+    // - Leitura por qualquer autenticado (a UI precisa listar/identificar).
+    // - Criação: o próprio usuário (bootstrap no 1º login) ou um gestor (convite).
+    // - Edição/exclusão: apenas gestores (admin/gerência) definem perfil/ativo.
     match /usuarios/{id} {
-      allow read, write: if isAuth();
+      allow read: if isAuth();
+      allow create: if isAuth() && (request.auth.uid == id || isGestor());
+      allow update, delete: if isGestor();
     }
 
+    // CONFIGURAÇÕES DA EMPRESA (precificação, dados) — só gestores escrevem.
     match /empresa/{id} {
-      allow read, write: if isAuth();
+      allow read: if isAuth();
+      allow write: if isGestor();
     }
 
+    // FINANCEIRO — leitura autenticada.
+    // - Criação liberada para autenticados: o fechamento de venda no PDV gera
+    //   contas a receber/pagar (comissão), e quem fecha pode ser vendedor.
+    // - Edição/baixa de parcelas (marcar pago): apenas perfis financeiros.
     match /contas_receber/{id} {
-      allow read, write: if isAuth();
+      allow read, create: if isAuth();
+      allow update, delete: if podeFinanceiro();
     }
 
     match /contas_pagar/{id} {
-      allow read, write: if isAuth();
+      allow read, create: if isAuth();
+      allow update, delete: if podeFinanceiro();
     }
 
     match /assistencia_tecnica/{id} {
