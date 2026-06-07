@@ -24,8 +24,10 @@ import {
   CheckSquare,
   Boxes,
   ClipboardList,
+  Warehouse,
 } from 'lucide-react';
 import { useState, useMemo } from 'react';
+import { DepositosModal } from '@/components/modules/estoque/DepositosModal';
 
 type UserProfile = 'admin' | 'gerencia' | 'vendedor' | 'comprador' | 'financeiro' | 'estoquista';
 
@@ -52,6 +54,7 @@ interface NavItem {
   icon: React.ReactNode;
   requiredProfiles?: UserProfile[];
   children?: NavItem[];
+  action?: 'depositos-modal';
 }
 
 const navItems: NavItem[] = [
@@ -156,6 +159,12 @@ const navItems: NavItem[] = [
         requiredProfiles: ['admin', 'gerencia', 'comprador'],
       },
       {
+        label: 'Editar Depósitos',
+        action: 'depositos-modal',
+        icon: <Warehouse className="w-4 h-4" />,
+        requiredProfiles: ['admin', 'gerencia', 'comprador'],
+      },
+      {
         label: 'Categorias',
         href: '/dashboard/configuracoes/categorias',
         icon: <CheckSquare className="w-4 h-4" />,
@@ -208,6 +217,7 @@ export default function DashboardSidebar({ isOpen, onToggle }: DashboardSidebarP
   const router = useRouter();
   const pathname = usePathname();
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const [depositosModalOpen, setDepositosModalOpen] = useState(false);
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -258,6 +268,12 @@ export default function DashboardSidebar({ isOpen, onToggle }: DashboardSidebarP
     const isExpanded = expandedItems.has(item.label);
     const isRoot = depth === 0;
 
+    const handleAction = () => {
+      if (item.action === 'depositos-modal') {
+        setDepositosModalOpen(true);
+      }
+    };
+
     return (
       <div key={item.label}>
         {item.href ? (
@@ -275,6 +291,21 @@ export default function DashboardSidebar({ isOpen, onToggle }: DashboardSidebarP
             {item.icon}
             {isOpen && <span className="flex-1">{item.label}</span>}
           </Link>
+        ) : item.action ? (
+          // Action button item
+          <button
+            onClick={handleAction}
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
+              isActive
+                ? 'bg-mali-primary/10 text-mali-primary font-medium'
+                : 'text-muted-foreground hover:bg-background hover:text-foreground'
+            }`}
+            style={{ paddingLeft: `${12 + depth * 12}px` }}
+            title={!isOpen ? item.label : ''}
+          >
+            {item.icon}
+            {isOpen && <span className="flex-1">{item.label}</span>}
+          </button>
         ) : (
           // Submenu trigger
           <button
@@ -313,48 +344,52 @@ export default function DashboardSidebar({ isOpen, onToggle }: DashboardSidebarP
   };
 
   return (
-    <div
-      className={`${
-        isOpen ? 'w-64' : 'w-20'
-      } bg-card border-r border-border h-full flex flex-col transition-all duration-300 overflow-hidden`}
-    >
-      {/* Logo */}
-      <div className="p-4 border-b border-border">
-        <Link href="/dashboard" className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-mali-primary to-mali-primary-dark rounded-lg flex items-center justify-center flex-shrink-0">
-            <span className="text-lg font-bold text-mali-secondary">M</span>
-          </div>
+    <>
+      <div
+        className={`${
+          isOpen ? 'w-64' : 'w-20'
+        } bg-card border-r border-border h-full flex flex-col transition-all duration-300 overflow-hidden`}
+      >
+        {/* Logo */}
+        <div className="p-4 border-b border-border">
+          <Link href="/dashboard" className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-mali-primary to-mali-primary-dark rounded-lg flex items-center justify-center flex-shrink-0">
+              <span className="text-lg font-bold text-mali-secondary">M</span>
+            </div>
+            {isOpen && (
+              <div className="flex flex-col">
+                <span className="font-bold text-sm text-foreground">Mali</span>
+                <span className="text-xs text-muted-foreground">Mobile</span>
+              </div>
+            )}
+          </Link>
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+          {filteredItems.map((item) => renderItem(item))}
+        </nav>
+
+        {/* User Footer */}
+        <div className="border-t border-border p-3 space-y-2">
           {isOpen && (
-            <div className="flex flex-col">
-              <span className="font-bold text-sm text-foreground">Mali</span>
-              <span className="text-xs text-muted-foreground">Mobile</span>
+            <div className="px-3 py-2 rounded-md bg-background text-xs">
+              <p className="font-semibold text-foreground">{userProfile?.nome}</p>
+              <p className="text-muted-foreground capitalize">{userProfile?.perfil}</p>
             </div>
           )}
-        </Link>
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm text-destructive hover:bg-destructive/10 transition-colors"
+            title={!isOpen ? 'Sair' : ''}
+          >
+            <LogOut className="w-4 h-4" />
+            {isOpen && 'Sair'}
+          </button>
+        </div>
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-        {filteredItems.map((item) => renderItem(item))}
-      </nav>
-
-      {/* User Footer */}
-      <div className="border-t border-border p-3 space-y-2">
-        {isOpen && (
-          <div className="px-3 py-2 rounded-md bg-background text-xs">
-            <p className="font-semibold text-foreground">{userProfile?.nome}</p>
-            <p className="text-muted-foreground capitalize">{userProfile?.perfil}</p>
-          </div>
-        )}
-        <button
-          onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm text-destructive hover:bg-destructive/10 transition-colors"
-          title={!isOpen ? 'Sair' : ''}
-        >
-          <LogOut className="w-4 h-4" />
-          {isOpen && 'Sair'}
-        </button>
-      </div>
-    </div>
+      <DepositosModal isOpen={depositosModalOpen} onClose={() => setDepositosModalOpen(false)} />
+    </>
   );
 }
