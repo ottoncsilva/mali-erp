@@ -5,11 +5,13 @@ import { useCollection } from '@/lib/hooks';
 import { Table } from '@/components/ui/Table';
 import { Modal } from '@/components/ui/Modal';
 import { formatBRL, formatData } from '@/lib/utils/format';
-import { ContaPagar, ContaReceber, ContaBancaria, FormaPagamento, CategoriaFinanceira } from '@/types';
-import { DollarSign, TrendingUp, TrendingDown, CheckCircle2, Loader2, AlertCircle, Plus } from 'lucide-react';
+import { ContaPagar, ContaReceber, ContaBancaria, FormaPagamento, CategoriaFinanceira, MovimentoCaixa } from '@/types';
+import { DollarSign, TrendingUp, TrendingDown, CheckCircle2, Loader2, AlertCircle, Plus, Download } from 'lucide-react';
 import { baixarParcela, reabrirParcela } from '@/lib/financeiro/baixa';
 import { lancarContaManual } from '@/lib/financeiro/lancamento';
 import { useAuth } from '@/lib/hooks';
+import { PDFDownloadLink } from '@react-pdf/renderer';
+import { gerarExtratoContaBancariaPDF } from '@/lib/pdf/geradores';
 
 type Tipo = 'receber' | 'pagar';
 
@@ -72,12 +74,14 @@ export default function FinanceiroPage() {
   const { data: contasPagar, loading: loadingP } = useCollection<ContaPagar>('contas_pagar');
   const { data: contas, loading: loadingContas } = useCollection<ContaBancaria>('contas_bancarias');
   const { data: categorias } = useCollection<CategoriaFinanceira>('categorias_financeiras');
+  const { data: movimentos } = useCollection<MovimentoCaixa>('movimentos_caixa');
 
   const [filtro, setFiltro] = useState<Tipo | 'todas'>('todas');
   const [modalBaixaOpen, setModalBaixaOpen] = useState(false);
   const [linhaParaBaixar, setLinhaParaBaixar] = useState<LinhaConta | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState('');
+  const [contaSelecionadaExportar, setContaSelecionadaExportar] = useState<string>(contas.length > 0 ? contas[0].id : '');
 
   // Lançamento manual
   const [modalLancOpen, setModalLancOpen] = useState(false);
@@ -346,13 +350,35 @@ export default function FinanceiroPage() {
           <h1 className="text-3xl font-bold text-foreground">Financeiro</h1>
           <p className="text-muted-foreground mt-2">Recebimentos, pagamentos e lançamentos</p>
         </div>
-        <button
-          onClick={abrirLancamento}
-          className="flex items-center gap-2 px-4 py-2 bg-mali-primary text-mali-secondary font-semibold rounded-md hover:opacity-90"
-        >
-          <Plus className="w-4 h-4" />
-          Novo Lançamento
-        </button>
+        <div className="flex gap-3 items-center">
+          {contas.length > 0 && (
+            <div className="flex gap-2 items-center">
+              <select
+                value={contaSelecionadaExportar}
+                onChange={(e) => setContaSelecionadaExportar(e.target.value)}
+                className="px-3 py-2 border border-border rounded-md bg-background text-foreground text-sm"
+              >
+                {contas.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.nome}
+                  </option>
+                ))}
+              </select>
+              <ExportExtratoButton
+                contaId={contaSelecionadaExportar}
+                contas={contas}
+                movimentos={movimentos}
+              />
+            </div>
+          )}
+          <button
+            onClick={abrirLancamento}
+            className="flex items-center gap-2 px-4 py-2 bg-mali-primary text-mali-secondary font-semibold rounded-md hover:opacity-90"
+          >
+            <Plus className="w-4 h-4" />
+            Novo Lançamento
+          </button>
+        </div>
       </div>
 
       {/* KPIs */}
@@ -784,5 +810,62 @@ export default function FinanceiroPage() {
         </div>
       </Modal>
     </div>
+  );
+}
+
+function ExportExtratoButton({
+  contaId,
+  contas,
+  movimentos,
+}: {
+  contaId: string;
+  contas: (ContaBancaria & { id: string })[];
+  movimentos: (MovimentoCaixa & { id: string })[];
+}) {
+  const conta = contas.find((c) => c.id === contaId);
+  if (!conta) return null;
+
+  const movimentosDaConta = movimentos.filter((m) => m.contaBancariaId === contaId);
+
+  let saldoAtual = conta.saldoInicial;
+  const movimentosComSaldo = movimentosDaConta.map((m) => {
+    const saldoAnterior = saldoAtual;
+    if (m.tipo === 'entrada') {
+      saldoAtual += m.valor;
+    } else if (m.tipo === 'saida') {
+      saldoAtual -= m.valor;
+    }
+    return {
+      data: m.criadoEm || new Date(),
+      descricao: m.descricao,
+      tipo: m.tipo,
+      valor: m.valor,
+      saldo: saldoAtual,
+    };
+  });
+
+  const pdfDoc = gerarExtratoContaBancariaPDF({
+    contaNome: conta.nome,
+    contaTipo: conta.tipo,
+    periodo: `${new Date().getFullYear()} - ${String(new Date().getMonth() + 1).padStart(2, '0')}`,
+    saldoInicial: conta.saldoInicial,
+    saldoFinal: saldoAtual,
+    totalEntradas: movimentosDaConta.filter((m) => m.tipo === 'entrada').reduce((s, m) => s + m.valor, 0),
+    totalSaidas: movimentosDaConta.filter((m) => m.tipo === 'saida').reduce((s, m) => s + m.valor, 0),
+    movimentos: movimentosComSaldo,
+  });
+
+  return (
+    <PDFDownloadLink document={pdfDoc} fileName={`Extrato_${conta.nome}_${new Date().getTime()}.pdf`}>
+      {({ blob, url, loading, error }) => (
+        <button
+          disabled={loading}
+          className="px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors font-medium flex items-center gap-2"
+        >
+          <Download className="w-4 h-4" />
+          {loading ? 'Gerando...' : 'Extrato'}
+        </button>
+      )}
+    </PDFDownloadLink>
   );
 }

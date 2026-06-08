@@ -14,13 +14,15 @@ import {
   Pie,
   Cell,
 } from 'recharts';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { Loader2, AlertCircle, Download } from 'lucide-react';
+import { PDFDownloadLink } from '@react-pdf/renderer';
 import { Table } from '@/components/ui/Table';
 import { useCollection } from '@/lib/hooks';
 import { ProtegerPagina } from '@/components/auth/ProtegerPagina';
 import { Atendimento, Produto, Categoria, Usuario } from '@/types';
 import { intervaloPeriodo } from '@/lib/financeiro/dre';
 import { formatBRL } from '@/lib/utils/format';
+import { gerarComissoesPDF } from '@/lib/pdf/geradores';
 
 const COLORS = ['#D4AF37', '#5A6B7C', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
 
@@ -252,29 +254,77 @@ function RelatoriosContent() {
           )}
 
           {filtroTipo === 'vendedor' && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-card rounded-lg border border-border p-6">
-                <h3 className="font-semibold text-foreground mb-4">Faturamento por Vendedor</h3>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={porVendedor}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="vendedor" angle={-45} textAnchor="end" height={100} stroke="#5a6b7c" />
-                    <YAxis stroke="#5a6b7c" />
-                    <Tooltip formatter={(v) => formatBRL(Number(v))} />
-                    <Bar dataKey="vendas" name="Faturamento" fill="#D4AF37" radius={[8, 8, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+            <>
+              <div className="flex justify-end">
+                <ExportComissoesButton porVendedor={porVendedor} periodo={filtroPeriodo} />
               </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="bg-card rounded-lg border border-border p-6">
+                  <h3 className="font-semibold text-foreground mb-4">Faturamento por Vendedor</h3>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={porVendedor}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                      <XAxis dataKey="vendedor" angle={-45} textAnchor="end" height={100} stroke="#5a6b7c" />
+                      <YAxis stroke="#5a6b7c" />
+                      <Tooltip formatter={(v) => formatBRL(Number(v))} />
+                      <Bar dataKey="vendas" name="Faturamento" fill="#D4AF37" radius={[8, 8, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
 
-              <div className="bg-card rounded-lg border border-border p-6">
-                <h3 className="font-semibold text-foreground mb-4">Detalhamento</h3>
-                <Table columns={colunasVendedor} data={porVendedor} />
+                <div className="bg-card rounded-lg border border-border p-6">
+                  <h3 className="font-semibold text-foreground mb-4">Detalhamento</h3>
+                  <Table columns={colunasVendedor} data={porVendedor} />
+                </div>
               </div>
-            </div>
+            </>
           )}
         </>
       )}
     </div>
+  );
+}
+
+function ExportComissoesButton({
+  porVendedor,
+  periodo,
+}: {
+  porVendedor: Array<{ vendedor: string; vendas: number; qtdVendas: number; ticket: number }>;
+  periodo: Periodo;
+}) {
+  const periodoPT =
+    periodo === 'mes'
+      ? 'Este Mês'
+      : periodo === 'trimestre'
+        ? 'Este Trimestre'
+        : 'Este Ano';
+
+  const comissoes = porVendedor.map((v) => ({
+    colaboradorNome: v.vendedor,
+    colaboradorId: '',
+    mesAno: periodoPT,
+    totalComissao: 0,
+    quantidadeVendas: v.qtdVendas,
+    ticketMedio: v.ticket,
+  }));
+
+  const pdfDoc = gerarComissoesPDF(comissoes, periodoPT);
+
+  return (
+    <PDFDownloadLink
+      document={pdfDoc}
+      fileName={`Comissoes_${periodo}_${new Date().getTime()}.pdf`}
+    >
+      {({ blob, url, loading, error }) => (
+        <button
+          disabled={loading}
+          className="px-4 py-2 bg-mali-primary text-white rounded-md hover:bg-mali-primary/90 transition-colors font-medium flex items-center gap-2"
+        >
+          <Download className="w-4 h-4" />
+          {loading ? 'Gerando...' : 'Exportar PDF'}
+        </button>
+      )}
+    </PDFDownloadLink>
   );
 }
 

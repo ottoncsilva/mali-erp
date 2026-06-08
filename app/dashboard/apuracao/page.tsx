@@ -11,7 +11,8 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import { TrendingUp, AlertCircle, Loader2 } from 'lucide-react';
+import { TrendingUp, AlertCircle, Loader2, Download } from 'lucide-react';
+import { PDFDownloadLink } from '@react-pdf/renderer';
 import { useCollection } from '@/lib/hooks';
 import { ProtegerPagina } from '@/components/auth/ProtegerPagina';
 import {
@@ -27,6 +28,7 @@ import {
   RegimeDRE,
 } from '@/lib/financeiro/dre';
 import { formatBRL } from '@/lib/utils/format';
+import { gerarDREPDF } from '@/lib/pdf/geradores';
 
 type Periodo = 'mes' | 'trimestre' | 'ano';
 
@@ -95,7 +97,7 @@ function ApuracaoContent() {
         </p>
       </div>
 
-      {/* Controles: Período + Regime */}
+      {/* Controles: Período + Regime + Export */}
       <div className="flex flex-wrap gap-3 items-center justify-between">
         <div className="flex gap-3">
           {[
@@ -136,6 +138,8 @@ function ApuracaoContent() {
             </button>
           ))}
         </div>
+
+        <ExportDREButton dre={dre} periodo={periodo} regime={regime} />
       </div>
 
       <p className="text-xs text-muted-foreground">
@@ -323,6 +327,53 @@ function CardMargem({
       <p className={`text-3xl font-bold ${cores.text}`}>{valor.toFixed(2)}%</p>
       <p className="text-xs text-muted-foreground mt-2">{descricao}</p>
     </div>
+  );
+}
+
+function ExportDREButton({
+  dre,
+  periodo,
+  regime,
+}: {
+  dre: any;
+  periodo: string;
+  regime: RegimeDRE;
+}) {
+  const periodoPT =
+    periodo === 'mes'
+      ? 'Este Mês'
+      : periodo === 'trimestre'
+        ? 'Este Trimestre'
+        : 'Este Ano';
+
+  const pdfDoc = gerarDREPDF({
+    receitaBruta: dre.receitaBruta,
+    deducoes: dre.deducoes,
+    cmv: dre.cmv,
+    despesasOperacionais: dre.despesasOperacionais,
+    despesasPessoal: dre.despesasPessoal,
+    despesasFinanceiras: dre.despesasFinanceiras,
+    lucroLiquido: dre.lucroLiquido,
+    periodo: periodoPT,
+    regime: regime,
+    dataGeracao: new Date(),
+  });
+
+  return (
+    <PDFDownloadLink
+      document={pdfDoc}
+      fileName={`DRE_${periodo}_${new Date().getTime()}.pdf`}
+    >
+      {({ blob, url, loading, error }) => (
+        <button
+          disabled={loading}
+          className="px-4 py-2 bg-mali-primary text-white rounded-md hover:bg-mali-primary/90 transition-colors font-medium flex items-center gap-2"
+        >
+          <Download className="w-4 h-4" />
+          {loading ? 'Gerando...' : 'Exportar PDF'}
+        </button>
+      )}
+    </PDFDownloadLink>
   );
 }
 
