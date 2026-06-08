@@ -76,6 +76,14 @@ service cloud.firestore {
       allow write: if isGestor();
     }
 
+    // METAS DE VENDAS (faturamento por loja/vendedor).
+    // Leitura por autenticado (vendedor acompanha a própria meta no dashboard);
+    // definição/edição apenas por gestores.
+    match /metas/{id} {
+      allow read: if isAuth();
+      allow write: if isGestor();
+    }
+
     // CARGOS (perfis de acesso e comissão) — leitura autenticada (a UI/login
     // precisa resolver permissões); escrita só por quem gere usuários (gestor).
     match /cargos/{id} {

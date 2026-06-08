@@ -70,7 +70,8 @@ export function calcularComissoesVenda({
     if (!pct || pct <= 0) return;
     const base = cargo.baseComissao;
     const baseValor = valorDaBase(base, valores);
-    const valor = (baseValor * pct) / 100;
+    // Arredonda para 2 casas — evita dízimas (R$ 73,3333) na conta a pagar.
+    const valor = Math.round(((baseValor * pct) / 100) * 100) / 100;
     if (valor <= 0) return;
     vistos.add(colab.id);
     resultados.push({

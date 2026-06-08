@@ -4,7 +4,7 @@ import { useAuth, useCollection, useUpdateDocument } from '@/lib/hooks';
 import { Atendimento, Cliente } from '@/types';
 import { useEffect, useState } from 'react';
 import { db } from '@/lib/firebase/config';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { ArrowRight, Loader2, Mail, Phone, TrendingUp, Eye, AlertCircle, MessageCircle, Clock, CheckCircle2 } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { formatBRL } from '@/lib/utils/format';
@@ -20,8 +20,10 @@ const statusPipeline = [
   { value: 'esfriou', label: 'Esfriou', color: 'bg-gray-500/10 border-gray-500/20 text-gray-600', icon: '❄️' },
 ];
 
-const getQuoteStatus = (orc: AtendimentoComCliente): { tipo: 'vencido' | 'vencendo' | 'ok' | 'sem_data'; label: string } => {
-  const diasValidadeOrcamento = 7; // Default; should come from empresa config
+const getQuoteStatus = (
+  orc: AtendimentoComCliente,
+  diasValidadeOrcamento: number
+): { tipo: 'vencido' | 'vencendo' | 'ok' | 'sem_data'; label: string } => {
   const dataCriacao = toDate(orc.criadoEm);
   if (!dataCriacao) return { tipo: 'sem_data', label: 'Data desconhecida' };
 
@@ -46,6 +48,17 @@ export default function CarteiraPage() {
   const [isFollowUpModalOpen, setIsFollowUpModalOpen] = useState(false);
   const [draggedItem, setDraggedItem] = useState<{ id: string; fromStatus: string } | null>(null);
   const [followUpData, setFollowUpData] = useState({ data: '', observacao: '' });
+  const [diasValidade, setDiasValidade] = useState(7);
+
+  // Validade do orçamento vem da configuração da loja (empresa/config).
+  useEffect(() => {
+    getDoc(doc(db, 'empresa', 'config'))
+      .then((snap) => {
+        const dias = snap.exists() ? (snap.data().diasValidadeOrcamento as number) : 0;
+        if (dias && dias > 0) setDiasValidade(dias);
+      })
+      .catch(() => {});
+  }, []);
 
   // Filtrar orçamentos do vendedor
   useEffect(() => {
@@ -163,7 +176,7 @@ export default function CarteiraPage() {
       </div>
 
       {/* Alertas de Vencimento */}
-      {carteiraOrcamentos.some((o) => getQuoteStatus(o).tipo === 'vencido' || getQuoteStatus(o).tipo === 'vencendo') && (
+      {carteiraOrcamentos.some((o) => getQuoteStatus(o, diasValidade).tipo === 'vencido' || getQuoteStatus(o, diasValidade).tipo === 'vencendo') && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <div className="flex gap-2 items-start">
             <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
@@ -171,7 +184,7 @@ export default function CarteiraPage() {
               <h4 className="font-semibold text-red-900 mb-1">Orçamentos vencendo ou vencidos</h4>
               <div className="space-y-1 text-sm text-red-800">
                 {carteiraOrcamentos.map((orc) => {
-                  const status = getQuoteStatus(orc);
+                  const status = getQuoteStatus(orc, diasValidade);
                   if (status.tipo === 'ok' || status.tipo === 'sem_data') return null;
                   return (
                     <div key={orc.id} className="flex justify-between">
@@ -202,7 +215,7 @@ export default function CarteiraPage() {
 
             <div className="space-y-2 min-h-[400px]">
               {(porPipeline as any)[status.value]?.map((orc: AtendimentoComCliente) => {
-                const quoteStatus = getQuoteStatus(orc);
+                const quoteStatus = getQuoteStatus(orc, diasValidade);
                 const isExpired = quoteStatus.tipo === 'vencido';
                 const isExpiring = quoteStatus.tipo === 'vencendo';
 
@@ -412,7 +425,7 @@ export default function CarteiraPage() {
 
             {/* Vencimento Status */}
             {(() => {
-              const quoteStatus = getQuoteStatus(selectedOrcamento);
+              const quoteStatus = getQuoteStatus(selectedOrcamento, diasValidade);
               return (
                 quoteStatus.tipo !== 'sem_data' && (
                   <div className={`p-4 rounded-lg border ${
