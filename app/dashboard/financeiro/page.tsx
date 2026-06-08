@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useCollection } from '@/lib/hooks';
 import { Table } from '@/components/ui/Table';
 import { Modal } from '@/components/ui/Modal';
@@ -81,7 +81,14 @@ export default function FinanceiroPage() {
   const [linhaParaBaixar, setLinhaParaBaixar] = useState<LinhaConta | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState('');
-  const [contaSelecionadaExportar, setContaSelecionadaExportar] = useState<string>(contas.length > 0 ? contas[0].id : '');
+  const [contaSelecionadaExportar, setContaSelecionadaExportar] = useState<string>('');
+
+  // `contas` carrega de forma assíncrona; pré-seleciona a primeira ao chegar.
+  useEffect(() => {
+    if (!contaSelecionadaExportar && contas.length > 0) {
+      setContaSelecionadaExportar(contas[0].id);
+    }
+  }, [contas, contaSelecionadaExportar]);
 
   // Lançamento manual
   const [modalLancOpen, setModalLancOpen] = useState(false);

@@ -21,6 +21,20 @@ export interface DadosLancamentoManual {
 }
 
 export async function lancarContaManual(dados: DadosLancamentoManual): Promise<string> {
+  // Validações de integridade (não confiar só na UI).
+  if (!(dados.valorTotal > 0)) {
+    throw new Error('O valor total deve ser maior que zero.');
+  }
+  if (!dados.categoriaId) {
+    throw new Error('Selecione uma categoria para o lançamento.');
+  }
+  const somaParcelas = dados.parcelas.reduce((s, p) => s + (p.valor || 0), 0);
+  if (Math.abs(somaParcelas - dados.valorTotal) >= 0.01) {
+    throw new Error(
+      `A soma das parcelas (${somaParcelas.toFixed(2)}) não confere com o valor total (${dados.valorTotal.toFixed(2)}).`
+    );
+  }
+
   const colecao = dados.tipo === 'receber' ? 'contas_receber' : 'contas_pagar';
   const ref = await addDoc(collection(db, colecao), {
     origem: 'manual',

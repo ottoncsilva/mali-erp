@@ -82,6 +82,21 @@ export async function finalizarVendaAtomica(
 ): Promise<ResultadoFinalizacao> {
   const { atendimento, itens, contaReceber, contasPagar, ctx } = dados;
 
+  // Integridade financeira: a soma das parcelas tem que bater com o valor total
+  // (senão DRE por competência diverge do faturamento da venda).
+  const conferirParcelas = (parcelas: ParcelaFinalizacao[], total: number, rotulo: string) => {
+    const soma = parcelas.reduce((s, p) => s + (p.valor || 0), 0);
+    if (Math.abs(soma - total) >= 0.01) {
+      throw new Error(
+        `${rotulo}: soma das parcelas (${soma.toFixed(2)}) ≠ valor total (${total.toFixed(2)}).`
+      );
+    }
+  };
+  conferirParcelas(contaReceber.parcelas, contaReceber.valorTotal, 'Conta a receber');
+  contasPagar.forEach((cp, i) =>
+    conferirParcelas(cp.parcelas, cp.valorTotal, `Comissão #${i + 1}`)
+  );
+
   const itensEstoque = itens.filter((i) => i.modalidade === 'estoque');
   const itensEncomenda = itens.filter((i) => i.modalidade === 'encomenda');
 

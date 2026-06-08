@@ -12,9 +12,13 @@ import type {
   LocalizacaoEstoque,
   NotaFiscal,
 } from '@/types';
-import { LOCALIZACOES_DISPONIVEIS } from '@/types';
+import { LOCALIZACOES, LOCALIZACOES_DISPONIVEIS } from '@/types';
 import { estoqueId } from './movimentacoes';
 import { arredondar } from './calculos';
+
+// Todas as localizações físicas representam estoque que a loja já possui
+// (comprado/em trânsito, showroom, depósito, em entrega) — base do custo médio.
+const TODAS_LOCALIZACOES = Object.keys(LOCALIZACOES) as LocalizacaoEstoque[];
 
 interface ContextoUsuario {
   registradoPorId: string;
@@ -57,11 +61,15 @@ export async function registrarNotaFiscal(
 
   const destinoDisponivel = LOCALIZACOES_DISPONIVEIS.includes(dados.localizacaoDestino);
 
-  // Refs por item (saldo de estoque + produto).
+  // Refs por item (saldo de estoque destino + produto + todas as localizações
+  // para apurar a quantidade já possuída antes da entrada → custo médio ponderado).
   const refsItens = dados.itens.map((item) => ({
     item,
     saldoRef: doc(db, 'estoque', estoqueId(item.produtoId, dados.localizacaoDestino)),
     produtoRef: doc(db, 'produtos', item.produtoId),
+    saldosTodasRefs: TODAS_LOCALIZACOES.map((loc) =>
+      doc(db, 'estoque', estoqueId(item.produtoId, loc))
+    ),
   }));
 
   const pedidoRef = dados.pedidoCompraId
@@ -74,7 +82,13 @@ export async function registrarNotaFiscal(
       refsItens.map(async (r) => {
         const saldoSnap = await tx.get(r.saldoRef);
         const produtoSnap = await tx.get(r.produtoRef);
-        return { ...r, saldoSnap, produtoSnap };
+        const saldosTodas = await Promise.all(r.saldosTodasRefs.map((ref) => tx.get(ref)));
+        // Quantidade total já possuída (todas as localizações) ANTES desta entrada.
+        const qtdOwnedAntes = saldosTodas.reduce(
+          (s, snap) => s + (snap.exists() ? (snap.data().quantidade as number) || 0 : 0),
+          0
+        );
+        return { ...r, saldoSnap, produtoSnap, qtdOwnedAntes };
       })
     );
 
@@ -126,13 +140,35 @@ export async function registrarNotaFiscal(
       if (ctx.registradoPorNome) mov.registradoPorNome = ctx.registradoPorNome;
       tx.set(movRef, mov);
 
-      // CMV do produto (componentes por unidade) + estoque denormalizado.
-      const qtd = l.item.quantidade > 0 ? l.item.quantidade : 1;
+      // CMV do produto por CUSTO MÉDIO PONDERADO (não sobrescreve).
+      // Mistura o custo do estoque remanescente com o custo da nova nota, por unidade.
+      const qtdEntrada = l.item.quantidade > 0 ? l.item.quantidade : 1;
+      const qtdAntes = l.qtdOwnedAntes;
+      const qtdTotal = qtdAntes + qtdEntrada;
+
+      const dadosProd = l.produtoSnap.exists() ? l.produtoSnap.data() : {};
+      const custoAntigoUnit = (dadosProd.custoProduto as number) || 0;
+      const icmsAntigoUnit = (dadosProd.icms as number) || 0;
+      const ipiAntigoUnit = (dadosProd.ipi as number) || 0;
+      const freteAntigoUnit = (dadosProd.frete as number) || 0;
+
+      // Componentes por unidade vindos da nota.
+      const custoNovoUnit = l.item.custoUnitario;
+      const icmsNovoUnit = l.item.icms / qtdEntrada;
+      const ipiNovoUnit = l.item.ipi / qtdEntrada;
+      const freteNovoUnit = l.item.freteRateado / qtdEntrada;
+
+      // Média ponderada por quantidade; se não havia estoque, assume o custo da nota.
+      const mediaPonderada = (antigoUnit: number, novoUnit: number) =>
+        qtdAntes > 0 && qtdTotal > 0
+          ? arredondar((qtdAntes * antigoUnit + qtdEntrada * novoUnit) / qtdTotal)
+          : arredondar(novoUnit);
+
       const produtoUpdate: any = {
-        custoProduto: l.item.custoUnitario,
-        icms: arredondar(l.item.icms / qtd),
-        ipi: arredondar(l.item.ipi / qtd),
-        frete: arredondar(l.item.freteRateado / qtd),
+        custoProduto: mediaPonderada(custoAntigoUnit, custoNovoUnit),
+        icms: mediaPonderada(icmsAntigoUnit, icmsNovoUnit),
+        ipi: mediaPonderada(ipiAntigoUnit, ipiNovoUnit),
+        frete: mediaPonderada(freteAntigoUnit, freteNovoUnit),
         atualizadoEm: serverTimestamp(),
       };
       // Estoque denormalizado só conta localizações disponíveis.

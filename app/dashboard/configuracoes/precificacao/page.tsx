@@ -16,6 +16,7 @@ export default function PrecificacaoPage() {
     pontuacaoPadrao: 2.0,
     limitesPontuacao: { vendedor: 1.8, gerencia: 1.5 },
     taxaJurosMensal: 0.02,
+    diasValidadeOrcamento: 7,
     condicoesPagamento: [] as CondicaoPagamentoConfig[],
   });
   const seededRef = useRef(false);
@@ -38,6 +39,7 @@ export default function PrecificacaoPage() {
           pontuacaoPadrao: data.pontuacaoPadrao || 2.0,
           limitesPontuacao: data.limitesPontuacao || { vendedor: 1.8, gerencia: 1.5 },
           taxaJurosMensal: data.taxaJurosMensal ?? 0.02,
+          diasValidadeOrcamento: data.diasValidadeOrcamento || 7,
           condicoesPagamento: condicoes.sort((a, b) => a.ordem - b.ordem),
         });
       } catch (err) {
@@ -155,6 +157,22 @@ export default function PrecificacaoPage() {
                 R$ {(100 * config.pontuacaoPadrao).toFixed(2)}
               </p>
               <p className="text-xs text-muted-foreground mt-1">CMV R$100 → Preço com Pontuação {config.pontuacaoPadrao}</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-3">Validade do Orçamento (dias)</label>
+              <input
+                type="number"
+                value={config.diasValidadeOrcamento}
+                onChange={(e) =>
+                  setConfig({ ...config, diasValidadeOrcamento: parseInt(e.target.value) || 0 })
+                }
+                step="1"
+                min="1"
+                className="w-full px-4 py-3 bg-background border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-mali-primary text-lg"
+              />
+              <p className="text-xs text-muted-foreground mt-2">
+                Após esse prazo, a carteira marca o orçamento como vencido.
+              </p>
             </div>
           </div>
         </div>

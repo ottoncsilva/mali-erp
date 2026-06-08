@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import { useCollection, useAuth } from '@/lib/hooks';
@@ -18,7 +18,14 @@ function ConciliacaoContent() {
   const { data: movimentos, loading: loadingMov } = useCollection<MovimentoCaixa>('movimentos_caixa');
   const { data: contas, loading: loadingContas } = useCollection<ContaBancaria>('contas_bancarias');
 
-  const [contaSelecionada, setContaSelecionada] = useState<string>(contas.length > 0 ? contas[0].id : '');
+  const [contaSelecionada, setContaSelecionada] = useState<string>('');
+
+  // `contas` chega de forma assíncrona; pré-seleciona a primeira quando carregar.
+  useEffect(() => {
+    if (!contaSelecionada && contas.length > 0) {
+      setContaSelecionada(contas[0].id);
+    }
+  }, [contas, contaSelecionada]);
   const [mesAnoSelecionado, setMesAnoSelecionado] = useState<string>(
     `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
   );

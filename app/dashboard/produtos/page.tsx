@@ -347,7 +347,7 @@ export default function ProdutosPage() {
                 <input
                   type="number"
                   value={formData.custoProduto}
-                  onChange={(e) => setFormData({ ...formData, custoProduto: parseFloat(e.target.value) })}
+                  onChange={(e) => setFormData({ ...formData, custoProduto: parseFloat(e.target.value) || 0 })}
                   step="0.01"
                   className="w-full px-3 py-2 bg-card border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-mali-primary"
                 />
@@ -357,7 +357,7 @@ export default function ProdutosPage() {
                 <input
                   type="number"
                   value={formData.icms}
-                  onChange={(e) => setFormData({ ...formData, icms: parseFloat(e.target.value) })}
+                  onChange={(e) => setFormData({ ...formData, icms: parseFloat(e.target.value) || 0 })}
                   step="0.01"
                   className="w-full px-3 py-2 bg-card border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-mali-primary"
                 />
@@ -367,7 +367,7 @@ export default function ProdutosPage() {
                 <input
                   type="number"
                   value={formData.ipi}
-                  onChange={(e) => setFormData({ ...formData, ipi: parseFloat(e.target.value) })}
+                  onChange={(e) => setFormData({ ...formData, ipi: parseFloat(e.target.value) || 0 })}
                   step="0.01"
                   className="w-full px-3 py-2 bg-card border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-mali-primary"
                 />
@@ -377,7 +377,7 @@ export default function ProdutosPage() {
                 <input
                   type="number"
                   value={formData.frete}
-                  onChange={(e) => setFormData({ ...formData, frete: parseFloat(e.target.value) })}
+                  onChange={(e) => setFormData({ ...formData, frete: parseFloat(e.target.value) || 0 })}
                   step="0.01"
                   className="w-full px-3 py-2 bg-card border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-mali-primary"
                 />
@@ -407,7 +407,7 @@ export default function ProdutosPage() {
                   <input
                     type="number"
                     value={formData.pontuacaoEspecial}
-                    onChange={(e) => setFormData({ ...formData, pontuacaoEspecial: parseFloat(e.target.value) })}
+                    onChange={(e) => setFormData({ ...formData, pontuacaoEspecial: parseFloat(e.target.value) || 0 })}
                     step="0.1"
                     min="1"
                     className="w-full px-3 py-2 bg-card border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-mali-primary"
@@ -426,7 +426,7 @@ export default function ProdutosPage() {
                 <input
                   type="number"
                   value={formData.estoqueMinimo}
-                  onChange={(e) => setFormData({ ...formData, estoqueMinimo: parseInt(e.target.value) })}
+                  onChange={(e) => setFormData({ ...formData, estoqueMinimo: parseInt(e.target.value) || 0 })}
                   className="w-full px-3 py-2 bg-background border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-mali-primary"
                   min="0"
                 />
@@ -436,7 +436,7 @@ export default function ProdutosPage() {
                 <input
                   type="number"
                   value={formData.estoqueAtual}
-                  onChange={(e) => setFormData({ ...formData, estoqueAtual: parseInt(e.target.value) })}
+                  onChange={(e) => setFormData({ ...formData, estoqueAtual: parseInt(e.target.value) || 0 })}
                   className="w-full px-3 py-2 bg-background border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-mali-primary"
                   min="0"
                 />

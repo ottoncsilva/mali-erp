@@ -46,6 +46,11 @@ export async function baixarParcela(dados: DadosBaixa): Promise<string> {
   const contaRef = doc(db, colecao, contaId);
   const contaBancariaRef = doc(db, 'contas_bancarias', dadosPagamento.contaBancariaId);
 
+  // Validação de valor: impede saldo invertido por digitação/chamada incorreta.
+  if (!(dadosPagamento.valorPago > 0)) {
+    throw new Error('O valor pago deve ser maior que zero.');
+  }
+
   return runTransaction(db, async (transaction) => {
     // 1. Ler dados atuais dentro da transação
     const contaSnap = await transaction.get(contaRef);
@@ -57,6 +62,12 @@ export async function baixarParcela(dados: DadosBaixa): Promise<string> {
     const parcelaIdx = conta.parcelas.findIndex((p) => p.numero === parcelaNumero);
     if (parcelaIdx === -1) {
       throw new Error(`Parcela ${parcelaNumero} não encontrada`);
+    }
+
+    // Idempotência: nunca baixar uma parcela já paga. Sem esta guarda, duplo
+    // clique ou baixa concorrente credita o caixa em dobro (saldo/DRE inflados).
+    if (conta.parcelas[parcelaIdx].pago) {
+      throw new Error(`Parcela ${parcelaNumero} já está baixada.`);
     }
 
     const contaBancariaSnap = await transaction.get(contaBancariaRef);
