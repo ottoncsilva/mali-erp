@@ -353,6 +353,13 @@ export interface Atendimento {
     observacoes?: string;
   };
   aprovadorId?: string;
+  // Follow-up / lembrete de contato (CRM ativo). Preenchido pelo vendedor.
+  followUp?: {
+    data: Date; // quando voltar a contatar o cliente
+    observacao?: string;
+    concluido?: boolean;
+    concluidoEm?: Date;
+  };
   criadoEm: Date;
   atualizadoEm: Date;
 }
@@ -543,6 +550,29 @@ export interface MovimentoCaixa {
   registradoPorId?: string;
   registradoPorNome?: string;
   criadoEm?: Date;
+  // Conciliação bancária: confronto do movimento do sistema com o extrato real.
+  conciliado?: boolean;
+  conciliadoEm?: Date;
+  conciliadoPorId?: string;
+  // Quando o movimento nasce de uma importação de extrato (OFX), guarda o id
+  // da transação no extrato para evitar duplicidade.
+  fitId?: string;
+}
+
+// ===================== METAS DE VENDAS =====================
+
+// Meta de faturamento mensal. Pode ser da loja (vendedorId vazio) ou de um
+// vendedor específico. Id composto: `${ano}-${mes}` (loja) ou
+// `${vendedorId}_${ano}-${mes}` (vendedor).
+export interface Meta {
+  id: string;
+  ano: number;
+  mes: number; // 0-11 (janeiro = 0)
+  vendedorId?: string; // vazio/ausente = meta global da loja
+  vendedorNome?: string;
+  valorMeta: number;
+  criadoEm?: Date;
+  atualizadoEm?: Date;
 }
 
 // ===================== FILTROS =====================
